@@ -10,7 +10,7 @@ import subprocess
 import sys
 from datetime import datetime
 
-from termedu.cli import main, run_lesson
+from termedu.cli import INTERRUPTED_MESSAGE, LessonInterrupted, main, run_lesson
 from termedu.config import AppConfig
 from termedu.logging_utils import LogWriteError
 
@@ -18,6 +18,19 @@ from termedu.logging_utils import LogWriteError
 class TtyStringIO(StringIO):
     def isatty(self) -> bool:
         return True
+
+
+class InterruptingInputStream:
+    def __init__(self, responses: list[str]) -> None:
+        self._responses = iter(responses)
+
+    def readline(self) -> str:
+        response = next(self._responses)
+
+        if response == "__interrupt__":
+            raise KeyboardInterrupt
+
+        return response
 
 
 def load_wrapper_module():
@@ -111,6 +124,38 @@ def test_run_lesson_writes_session_log_in_home_directory(tmp_path: Path) -> None
     )
 
 
+def test_run_lesson_interrupts_cleanly_and_persists_partial_log(tmp_path: Path) -> None:
+    config = AppConfig(name="Ada", fixed_left=4, fixed_right=3)
+    input_stream = InterruptingInputStream(["12\n", "__interrupt__"])
+    output = StringIO()
+    started_at = datetime(2026, 4, 26, 13, 14, 15)
+
+    try:
+        run_lesson(
+            config,
+            input_stream=input_stream,
+            output=output,
+            rng=random.Random(0),
+            log_home_dir=tmp_path,
+            started_at=started_at,
+        )
+    except LessonInterrupted as exc:
+        assert str(exc) == INTERRUPTED_MESSAGE
+    else:
+        raise AssertionError("run_lesson should raise LessonInterrupted on ctrl-c")
+
+    transcript = output.getvalue()
+    log_path = tmp_path / "termedu-Ada-20260426T131415.txt"
+
+    assert transcript.endswith(f"\n{INTERRUPTED_MESSAGE}\n")
+    assert log_path.exists()
+
+    log_lines = log_path.read_text(encoding="utf-8").splitlines()
+
+    assert "4 x 3 = 12 YES" in log_lines
+    assert INTERRUPTED_MESSAGE in log_lines
+
+
 def test_main_reports_log_write_failures(monkeypatch) -> None:
     def fake_run_lesson(config: AppConfig) -> None:
         raise LogWriteError("Could not write session log at /tmp/example.log: disk full")
@@ -132,6 +177,29 @@ def test_main_reports_log_write_failures(monkeypatch) -> None:
 
     assert exit_code == 1
     assert "Could not write session log at /tmp/example.log: disk full" in stderr.getvalue()
+
+
+def test_main_returns_130_for_keyboard_interrupt(monkeypatch) -> None:
+    def fake_run_lesson(config: AppConfig) -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr("termedu.cli.run_lesson", fake_run_lesson)
+
+    stderr = StringIO()
+    stdout = StringIO()
+    original_stderr = sys.stderr
+    original_stdout = sys.stdout
+
+    try:
+        sys.stderr = stderr
+        sys.stdout = stdout
+        exit_code = main([])
+    finally:
+        sys.stderr = original_stderr
+        sys.stdout = original_stdout
+
+    assert exit_code == 130
+    assert INTERRUPTED_MESSAGE in stderr.getvalue()
 
 
 def test_repo_root_wrapper_delegates_argv_to_packaged_main(monkeypatch) -> None:

@@ -20,6 +20,11 @@ from termedu.session import SESSION_TARGET, SessionState
 
 CORRECT_VERDICT = "YES"
 INCORRECT_VERDICT = "NO"
+INTERRUPTED_MESSAGE = "Lesson interrupted."
+
+
+class LessonInterrupted(Exception):
+    """Raised when the lesson stops early after a keyboard interrupt."""
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -54,6 +59,19 @@ def _normalize_answer_text(raw_answer: str) -> str:
     return raw_answer.rstrip("\r\n")
 
 
+def _write_session_log(
+    config: AppConfig,
+    session_started_at: datetime,
+    transcript_lines: list[str],
+    *,
+    log_home_dir: Path | None,
+) -> None:
+    log_path = build_session_log_path(config.name, session_started_at, home_dir=log_home_dir)
+    log_content = render_session_log(config.name, session_started_at, transcript_lines)
+
+    write_session_log(log_path, log_content)
+
+
 def run_lesson(
     config: AppConfig,
     *,
@@ -73,7 +91,23 @@ def run_lesson(
         output.write(question.prompt)
         output.flush()
 
-        raw_answer = input_stream.readline()
+        try:
+            raw_answer = input_stream.readline()
+        except KeyboardInterrupt as exc:
+            output.write(f"\n{INTERRUPTED_MESSAGE}\n")
+            output.flush()
+
+            transcript_lines.extend(["", INTERRUPTED_MESSAGE])
+
+            _write_session_log(
+                config,
+                session_started_at,
+                transcript_lines,
+                log_home_dir=log_home_dir,
+            )
+
+            raise LessonInterrupted(INTERRUPTED_MESSAGE) from exc
+
         if raw_answer == "":
             raise EOFError("Input ended before the lesson completed.")
 
@@ -90,10 +124,7 @@ def run_lesson(
 
         output.flush()
 
-    log_path = build_session_log_path(config.name, session_started_at, home_dir=log_home_dir)
-    log_content = render_session_log(config.name, session_started_at, transcript_lines)
-
-    write_session_log(log_path, log_content)
+    _write_session_log(config, session_started_at, transcript_lines, log_home_dir=log_home_dir)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -105,6 +136,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         run_lesson(config)
+    except LessonInterrupted:
+        return 130
+    except KeyboardInterrupt:
+        print(INTERRUPTED_MESSAGE, file=sys.stderr)
+        return 130
     except (EOFError, LogWriteError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
