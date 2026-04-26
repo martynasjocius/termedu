@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+import importlib.machinery
+import importlib.util
 from io import StringIO
+import os
+from pathlib import Path
 import random
+import subprocess
+import sys
 
 from termedu.cli import run_lesson
 from termedu.config import AppConfig
@@ -10,6 +16,21 @@ from termedu.config import AppConfig
 class TtyStringIO(StringIO):
     def isatty(self) -> bool:
         return True
+
+
+def load_wrapper_module():
+    script_path = Path(__file__).resolve().parents[1] / "termedu"
+    spec = importlib.util.spec_from_file_location(
+        "termedu_wrapper",
+        script_path,
+        loader=importlib.machinery.SourceFileLoader("termedu_wrapper", str(script_path)),
+    )
+    assert spec is not None
+    assert spec.loader is not None
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_run_lesson_uses_fixed_operands_and_finishes_after_twenty_four_correct_answers() -> None:
@@ -62,3 +83,33 @@ def test_run_lesson_normalizes_crlf_answers_before_rendering_verdict() -> None:
 
     assert "4 x 3 = 12\r YES\n" not in transcript
     assert transcript.count("4 x 3 = 12 YES\n") == 24
+
+
+def test_repo_root_wrapper_delegates_argv_to_packaged_main(monkeypatch) -> None:
+    wrapper = load_wrapper_module()
+    observed: list[str] = []
+
+    def fake_packaged_main(argv):
+        observed.extend(argv)
+        return 17
+
+    monkeypatch.setattr(wrapper, "packaged_main", fake_packaged_main)
+
+    assert wrapper.main(["Alice"]) == 17
+    assert observed == ["Alice"]
+
+
+def test_repo_root_wrapper_runs_from_outside_repo(tmp_path) -> None:
+    script_path = Path(__file__).resolve().parents[1] / "termedu"
+
+    result = subprocess.run(
+        [str(script_path), "--help"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=os.environ.copy(),
+    )
+
+    assert result.returncode == 0
+    assert "Run a termedu session." in result.stdout
