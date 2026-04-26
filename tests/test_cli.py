@@ -57,11 +57,12 @@ def test_run_lesson_uses_fixed_operands_and_finishes_after_twenty_four_correct_a
 
     transcript = output.getvalue()
 
-    assert transcript.count("4 x 3 = 12 YES\n") == 24
+    assert transcript.count("4 x 3 = 12 Yes!\n") == 24
+    assert "4 x 3 = 4 x 3 = 12 Yes!\n" not in transcript
     assert "(^_^)" in transcript
 
 
-def test_run_lesson_prints_no_for_incorrect_answers_and_continues() -> None:
+def test_run_lesson_prints_correct_answer_for_incorrect_answers_and_continues() -> None:
     config = AppConfig(fixed_left=4, fixed_right=3)
     input_stream = StringIO("11\n11\n11\n" + ("12\n" * 24))
     output = StringIO()
@@ -70,9 +71,10 @@ def test_run_lesson_prints_no_for_incorrect_answers_and_continues() -> None:
 
     transcript = output.getvalue()
 
-    assert "4 x 3 = 11 NO\n" in transcript
+    assert "4 x 3 = 11 No... 12\n" in transcript
+    assert "4 x 3 = 4 x 3 = 11 No... 12\n" not in transcript
     assert transcript.count("(T_T)") == 1
-    assert transcript.endswith("4 x 3 = 12 YES\n")
+    assert transcript.endswith("4 x 3 = 12 Yes!\n")
 
 
 def test_run_lesson_rewrites_the_previous_line_for_tty_output() -> None:
@@ -84,7 +86,19 @@ def test_run_lesson_rewrites_the_previous_line_for_tty_output() -> None:
 
     transcript = output.getvalue()
 
-    assert "\033[F\033[2K4 x 3 = 12 YES\n" in transcript
+    assert "\033[F\033[2K4 x 3 = 12 Yes!\n" in transcript
+
+
+def test_run_lesson_rewrites_the_previous_line_for_tty_incorrect_answers() -> None:
+    config = AppConfig(fixed_left=4, fixed_right=3)
+    input_stream = StringIO("11\n" + ("12\n" * 24))
+    output = TtyStringIO()
+
+    run_lesson(config, input_stream=input_stream, output=output, rng=random.Random(0))
+
+    transcript = output.getvalue()
+
+    assert "\033[F\033[2K4 x 3 = 11 No... 12\n" in transcript
 
 
 def test_run_lesson_normalizes_crlf_answers_before_rendering_verdict() -> None:
@@ -96,8 +110,29 @@ def test_run_lesson_normalizes_crlf_answers_before_rendering_verdict() -> None:
 
     transcript = output.getvalue()
 
-    assert "4 x 3 = 12\r YES\n" not in transcript
-    assert transcript.count("4 x 3 = 12 YES\n") == 24
+    assert "4 x 3 = 12\r Yes!\n" not in transcript
+    assert transcript.count("4 x 3 = 12 Yes!\n") == 24
+
+
+def test_run_lesson_writes_correct_answer_for_incorrect_answers_to_session_log(tmp_path: Path) -> None:
+    config = AppConfig(name="Ada", fixed_left=4, fixed_right=3)
+    input_stream = StringIO("11\n" + ("12\n" * 24))
+    output = StringIO()
+    started_at = datetime(2026, 4, 26, 13, 14, 15)
+
+    run_lesson(
+        config,
+        input_stream=input_stream,
+        output=output,
+        rng=random.Random(0),
+        log_home_dir=tmp_path,
+        started_at=started_at,
+    )
+
+    log_path = tmp_path / "termedu-Ada-20260426T131415.txt"
+    log_lines = log_path.read_text(encoding="utf-8").splitlines()
+
+    assert "4 x 3 = 11 No... 12" in log_lines
 
 
 def test_run_lesson_writes_session_log_in_home_directory(tmp_path: Path) -> None:
@@ -147,12 +182,12 @@ def test_run_lesson_interrupts_cleanly_and_persists_partial_log(tmp_path: Path) 
     transcript = output.getvalue()
     log_path = tmp_path / "termedu-Ada-20260426T131415.txt"
 
-    assert transcript.endswith(f"\n{INTERRUPTED_MESSAGE}\n")
+    assert transcript.endswith("\nLesson interrupted.\n")
     assert log_path.exists()
 
     log_lines = log_path.read_text(encoding="utf-8").splitlines()
 
-    assert "4 x 3 = 12 YES" in log_lines
+    assert "4 x 3 = 12 Yes!" in log_lines
     assert INTERRUPTED_MESSAGE in log_lines
 
 
@@ -199,7 +234,7 @@ def test_main_returns_130_for_keyboard_interrupt(monkeypatch) -> None:
         sys.stdout = original_stdout
 
     assert exit_code == 130
-    assert INTERRUPTED_MESSAGE in stderr.getvalue()
+    assert stderr.getvalue() == "Lesson interrupted.\n"
 
 
 def test_repo_root_wrapper_delegates_argv_to_packaged_main(monkeypatch) -> None:

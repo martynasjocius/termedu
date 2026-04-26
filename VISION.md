@@ -18,9 +18,9 @@ Example prompt:
 
 The child types the answer in place of `_` and presses Enter.
 
-If the answer is correct, print `YES` on that same line before moving on.
+If the answer is correct, print `Yes!` on that same line before moving on.
 
-If the answer is incorrect, print `NO` on that same line before moving on.
+If the answer is incorrect, print `No...` on that same line before moving on.
 
 The session ends after the child gives 24 correct answers total.
 
@@ -149,8 +149,8 @@ The user enters a numeric answer and presses Enter.
 
 ### Answer evaluation
 
-- If correct, print `YES` on the same line.
-- If incorrect, print `NO` on the same line.
+- If correct, print `Yes!` on the same line.
+- If incorrect, print `No...` on the same line.
 - Then move to the next question, unless the session has ended.
 
 “On the same line” means the terminal output should preserve the original question line and append the result after the entered answer, rather than printing the verdict on a separate new line.
@@ -158,8 +158,8 @@ The user enters a numeric answer and presses Enter.
 Example:
 
 ```text
-4 x 3 = 12 YES
-4 x 5 = 18 NO
+4 x 3 = 12 Yes!
+4 x 5 = 18 No...
 ```
 
 ## Streak Feedback
@@ -305,7 +305,7 @@ Optimize for a tiny reliable CLI program.
 - anonymous session logging
 - fixed operand plus custom ranges
 
-For non-numeric or empty input, preferred v1 behavior is to treat it as incorrect, print `NO`, and continue.
+For non-numeric or empty input, preferred v1 behavior is to treat it as incorrect, print `No...`, and continue.
 
 ## Acceptance Criteria
 
@@ -316,8 +316,8 @@ An implementation should be considered correct when all of the following are tru
 3. Config values in `~/.termedu` override defaults.
 4. CLI name overrides config name.
 5. The app asks one random question at a time and checks the answer on Enter.
-6. Correct answers append `YES` on the same line.
-7. Incorrect answers append `NO` on the same line.
+6. Correct answers append `Yes!` on the same line.
+7. Incorrect answers append `No...` on the same line.
 8. Five correct answers in a row print a happy kaomoji with one blank line above and below.
 9. Three incorrect answers in a row print a sad kaomoji with one blank line above and below.
 10. The session ends after 24 correct answers total.

@@ -18,8 +18,8 @@ from termedu.logging_utils import (
 )
 from termedu.session import SESSION_TARGET, SessionState
 
-CORRECT_VERDICT = "YES"
-INCORRECT_VERDICT = "NO"
+CORRECT_VERDICT = "Yes!"
+INCORRECT_VERDICT = "No..."
 INTERRUPTED_MESSAGE = "Lesson interrupted."
 
 
@@ -51,12 +51,21 @@ def _write_answer_line(output: object, prompt: str, answer_text: str, verdict: s
     if _supports_tty(output):
         output.write("\033[F")
         output.write("\033[2K")
+        output.write(f"{prompt}{answer_text} {verdict}\n")
+        return
 
-    output.write(f"{prompt}{answer_text} {verdict}\n")
+    output.write(f"{answer_text} {verdict}\n")
 
 
 def _normalize_answer_text(raw_answer: str) -> str:
     return raw_answer.rstrip("\r\n")
+
+
+def _build_verdict(is_correct: bool, correct_answer: int) -> str:
+    if is_correct:
+        return CORRECT_VERDICT
+
+    return f"{INCORRECT_VERDICT} {correct_answer}"
 
 
 def _write_session_log(
@@ -113,7 +122,7 @@ def run_lesson(
 
         answer_text = _normalize_answer_text(raw_answer)
         outcome = session.record_answer(is_correct_answer(question, answer_text))
-        verdict = CORRECT_VERDICT if outcome.is_correct else INCORRECT_VERDICT
+        verdict = _build_verdict(outcome.is_correct, question.answer)
 
         _write_answer_line(output, question.prompt, answer_text, verdict)
         transcript_lines.append(f"{question.prompt}{answer_text} {verdict}")
