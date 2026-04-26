@@ -2,10 +2,17 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Sequence
+from dataclasses import replace
 from pathlib import Path
+import random
 import sys
 
 from termedu.config import AppConfig, ConfigError, load_config
+from termedu.lesson import generate_question, is_correct_answer
+from termedu.session import SESSION_TARGET, SessionState
+
+CORRECT_VERDICT = "YES"
+INCORRECT_VERDICT = "NO"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -19,9 +26,56 @@ def resolve_config(argv: Sequence[str] | None = None, *, config_path: Path | Non
     config = load_config(config_path)
 
     if args.name:
-        return AppConfig(name=args.name)
+        return replace(config, name=args.name)
 
     return config
+
+
+def _supports_tty(stream: object) -> bool:
+    return bool(getattr(stream, "isatty", lambda: False)())
+
+
+def _write_answer_line(output: object, prompt: str, answer_text: str, verdict: str) -> None:
+    if _supports_tty(output):
+        output.write("\033[F")
+        output.write("\033[2K")
+
+    output.write(f"{prompt}{answer_text} {verdict}\n")
+
+
+def _normalize_answer_text(raw_answer: str) -> str:
+    return raw_answer.rstrip("\r\n")
+
+
+def run_lesson(
+    config: AppConfig,
+    *,
+    input_stream: object = sys.stdin,
+    output: object = sys.stdout,
+    rng: random.Random | None = None,
+) -> None:
+    lesson_rng = rng or random.Random()
+    session = SessionState()
+
+    while session.total_correct < SESSION_TARGET:
+        question = generate_question(config, lesson_rng)
+        output.write(question.prompt)
+        output.flush()
+
+        raw_answer = input_stream.readline()
+        if raw_answer == "":
+            raise EOFError("Input ended before the lesson completed.")
+
+        answer_text = _normalize_answer_text(raw_answer)
+        outcome = session.record_answer(is_correct_answer(question, answer_text))
+        verdict = CORRECT_VERDICT if outcome.is_correct else INCORRECT_VERDICT
+
+        _write_answer_line(output, question.prompt, answer_text, verdict)
+
+        if outcome.feedback:
+            output.write(f"\n{outcome.feedback}\n\n")
+
+        output.flush()
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -31,8 +85,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(str(exc), file=sys.stderr)
         return 2
 
-    learner_name = config.name or "anonymous"
-    print(f"Ready for learner: {learner_name}")
+    try:
+        run_lesson(config)
+    except EOFError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
     return 0
 
 
