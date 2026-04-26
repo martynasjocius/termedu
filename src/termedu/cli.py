@@ -3,12 +3,19 @@ from __future__ import annotations
 import argparse
 from collections.abc import Sequence
 from dataclasses import replace
+from datetime import datetime
 from pathlib import Path
 import random
 import sys
 
 from termedu.config import AppConfig, ConfigError, load_config
 from termedu.lesson import generate_question, is_correct_answer
+from termedu.logging_utils import (
+    LogWriteError,
+    build_session_log_path,
+    render_session_log,
+    write_session_log,
+)
 from termedu.session import SESSION_TARGET, SessionState
 
 CORRECT_VERDICT = "YES"
@@ -53,9 +60,13 @@ def run_lesson(
     input_stream: object = sys.stdin,
     output: object = sys.stdout,
     rng: random.Random | None = None,
+    log_home_dir: Path | None = None,
+    started_at: datetime | None = None,
 ) -> None:
     lesson_rng = rng or random.Random()
     session = SessionState()
+    session_started_at = started_at or datetime.now()
+    transcript_lines: list[str] = []
 
     while session.total_correct < SESSION_TARGET:
         question = generate_question(config, lesson_rng)
@@ -71,11 +82,18 @@ def run_lesson(
         verdict = CORRECT_VERDICT if outcome.is_correct else INCORRECT_VERDICT
 
         _write_answer_line(output, question.prompt, answer_text, verdict)
+        transcript_lines.append(f"{question.prompt}{answer_text} {verdict}")
 
         if outcome.feedback:
             output.write(f"\n{outcome.feedback}\n\n")
+            transcript_lines.extend(["", outcome.feedback, ""])
 
         output.flush()
+
+    log_path = build_session_log_path(config.name, session_started_at, home_dir=log_home_dir)
+    log_content = render_session_log(config.name, session_started_at, transcript_lines)
+
+    write_session_log(log_path, log_content)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -87,7 +105,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         run_lesson(config)
-    except EOFError as exc:
+    except (EOFError, LogWriteError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
 

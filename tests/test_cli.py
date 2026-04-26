@@ -8,9 +8,11 @@ from pathlib import Path
 import random
 import subprocess
 import sys
+from datetime import datetime
 
-from termedu.cli import run_lesson
+from termedu.cli import main, run_lesson
 from termedu.config import AppConfig
+from termedu.logging_utils import LogWriteError
 
 
 class TtyStringIO(StringIO):
@@ -83,6 +85,53 @@ def test_run_lesson_normalizes_crlf_answers_before_rendering_verdict() -> None:
 
     assert "4 x 3 = 12\r YES\n" not in transcript
     assert transcript.count("4 x 3 = 12 YES\n") == 24
+
+
+def test_run_lesson_writes_session_log_in_home_directory(tmp_path: Path) -> None:
+    config = AppConfig(name="Ada / Babbage", fixed_left=4, fixed_right=3)
+    input_stream = StringIO("12\n" * 24)
+    output = StringIO()
+    started_at = datetime(2026, 4, 26, 13, 14, 15)
+
+    run_lesson(
+        config,
+        input_stream=input_stream,
+        output=output,
+        rng=random.Random(0),
+        log_home_dir=tmp_path,
+        started_at=started_at,
+    )
+
+    log_path = tmp_path / "termedu-Ada-Babbage-20260426T131415.txt"
+
+    assert log_path.exists()
+    assert (
+        log_path.read_text(encoding="utf-8").splitlines()[:2]
+        == ["learner: Ada-Babbage", "started_at: 2026-04-26T13:14:15"]
+    )
+
+
+def test_main_reports_log_write_failures(monkeypatch) -> None:
+    def fake_run_lesson(config: AppConfig) -> None:
+        raise LogWriteError("Could not write session log at /tmp/example.log: disk full")
+
+    monkeypatch.setattr("termedu.cli.run_lesson", fake_run_lesson)
+
+    stderr = StringIO()
+    stdout = StringIO()
+    original_stderr = sys.stderr
+    original_stdout = sys.stdout
+
+    try:
+        sys.stderr = stderr
+        sys.stdout = stdout
+        exit_code = main([])
+    finally:
+        sys.stderr = original_stderr
+        sys.stdout = original_stdout
+
+    assert exit_code == 1
+    assert "Could not write session log at /tmp/example.log: disk full" in stderr.getvalue()
 
 
 def test_repo_root_wrapper_delegates_argv_to_packaged_main(monkeypatch) -> None:
