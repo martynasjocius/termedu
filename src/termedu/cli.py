@@ -16,7 +16,7 @@ from termedu.logging_utils import (
     render_session_log,
     write_session_log,
 )
-from termedu.session import SESSION_TARGET, SessionState
+from termedu.session import SessionState
 
 CORRECT_VERDICT = "Yes!"
 INCORRECT_VERDICT = "No..."
@@ -91,11 +91,11 @@ def run_lesson(
     started_at: datetime | None = None,
 ) -> None:
     lesson_rng = rng or random.Random()
-    session = SessionState()
+    session = SessionState(target_correct=config.session_target)
     session_started_at = started_at or datetime.now()
     transcript_lines: list[str] = []
 
-    while session.total_correct < SESSION_TARGET:
+    while session.total_correct < config.session_target:
         question = generate_question(config, lesson_rng)
         output.write(question.prompt)
         output.flush()

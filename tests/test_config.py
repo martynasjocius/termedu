@@ -28,7 +28,7 @@ def test_load_config_uses_home_directory_by_default(tmp_path: Path, monkeypatch:
 def test_load_config_reads_valid_toml(tmp_path: Path) -> None:
     config_path = tmp_path / ".termedu"
     config_path.write_text(
-        'name = "Ada"\noperation = "multiplication"\nleft_max = 9\nright_max = 8\nfixed_left = 4\n',
+        'name = "Ada"\noperation = "multiplication"\nleft_max = 9\nright_max = 8\nsession_target = 18\nfixed_left = 4\n',
         encoding="utf-8",
     )
 
@@ -39,6 +39,7 @@ def test_load_config_reads_valid_toml(tmp_path: Path) -> None:
         operation="multiplication",
         left_max=9,
         right_max=8,
+        session_target=18,
         fixed_left=4,
     )
 
@@ -63,6 +64,22 @@ def test_cli_name_overrides_config(tmp_path: Path) -> None:
 def test_load_config_rejects_negative_fixed_operand(tmp_path: Path) -> None:
     config_path = tmp_path / ".termedu"
     config_path.write_text("fixed_left = -1\n", encoding="utf-8")
+
+    with pytest.raises(ConfigError):
+        load_config(config_path)
+
+
+def test_load_config_rejects_negative_session_target(tmp_path: Path) -> None:
+    config_path = tmp_path / ".termedu"
+    config_path.write_text("session_target = -1\n", encoding="utf-8")
+
+    with pytest.raises(ConfigError):
+        load_config(config_path)
+
+
+def test_load_config_rejects_zero_session_target(tmp_path: Path) -> None:
+    config_path = tmp_path / ".termedu"
+    config_path.write_text("session_target = 0\n", encoding="utf-8")
 
     with pytest.raises(ConfigError):
         load_config(config_path)

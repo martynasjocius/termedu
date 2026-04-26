@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from termedu.session import HAPPY_KAOMOJI, SAD_KAOMOJI, SESSION_TARGET, SessionState
+from termedu.session import DEFAULT_SESSION_TARGET, HAPPY_KAOMOJI, SAD_KAOMOJI, SessionState
 
 
 def test_happy_feedback_after_five_correct_answers() -> None:
@@ -57,9 +57,19 @@ def test_session_completes_after_twenty_four_correct_answers() -> None:
     session = SessionState()
 
     outcome = None
-    for _ in range(SESSION_TARGET):
+    for _ in range(DEFAULT_SESSION_TARGET):
         outcome = session.record_answer(True)
 
     assert outcome is not None
     assert outcome.completed is True
-    assert outcome.total_correct == SESSION_TARGET
+    assert outcome.total_correct == DEFAULT_SESSION_TARGET
+
+
+def test_session_completes_after_custom_target() -> None:
+    session = SessionState(target_correct=2)
+
+    first_outcome = session.record_answer(True)
+    second_outcome = session.record_answer(True)
+
+    assert first_outcome.completed is False
+    assert second_outcome.completed is True

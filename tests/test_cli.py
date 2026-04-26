@@ -62,6 +62,18 @@ def test_run_lesson_uses_fixed_operands_and_finishes_after_twenty_four_correct_a
     assert "(^_^)" in transcript
 
 
+def test_run_lesson_stops_after_configured_session_target() -> None:
+    config = AppConfig(fixed_left=4, fixed_right=3, session_target=3)
+    input_stream = StringIO("12\n" * 24)
+    output = StringIO()
+
+    run_lesson(config, input_stream=input_stream, output=output, rng=random.Random(0))
+
+    transcript = output.getvalue()
+
+    assert transcript.count("4 x 3 = 12 Yes!\n") == 3
+
+
 def test_run_lesson_prints_correct_answer_for_incorrect_answers_and_continues() -> None:
     config = AppConfig(fixed_left=4, fixed_right=3)
     input_stream = StringIO("11\n11\n11\n" + ("12\n" * 24))

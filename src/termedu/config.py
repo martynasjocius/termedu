@@ -15,6 +15,7 @@ class AppConfig:
     operation: str = "multiplication"
     left_max: int = 12
     right_max: int = 12
+    session_target: int = 24
     fixed_left: int | None = None
     fixed_right: int | None = None
 
@@ -43,6 +44,21 @@ def _read_required_non_negative_int(
     if not isinstance(value, int) or value < 0:
         raise ConfigError(
             f"Invalid config file at {config_path}: {key} must be a non-negative integer."
+        )
+    return value
+
+
+def _read_required_positive_int(
+    raw: dict[str, object],
+    key: str,
+    config_path: Path,
+    *,
+    default: int,
+) -> int:
+    value = raw.get(key, default)
+    if type(value) is not int or value <= 0:
+        raise ConfigError(
+            f"Invalid config file at {config_path}: {key} must be a positive integer."
         )
     return value
 
@@ -77,6 +93,12 @@ def load_config(config_path: Path | None = None) -> AppConfig:
     operation = _read_optional_string(raw, "operation", resolved_path) or "multiplication"
     left_max = _read_required_non_negative_int(raw, "left_max", resolved_path, default=12)
     right_max = _read_required_non_negative_int(raw, "right_max", resolved_path, default=12)
+    session_target = _read_required_positive_int(
+        raw,
+        "session_target",
+        resolved_path,
+        default=24,
+    )
     fixed_left = _read_optional_non_negative_int(raw, "fixed_left", resolved_path)
     fixed_right = _read_optional_non_negative_int(raw, "fixed_right", resolved_path)
 
@@ -90,6 +112,7 @@ def load_config(config_path: Path | None = None) -> AppConfig:
         operation=operation,
         left_max=left_max,
         right_max=right_max,
+        session_target=session_target,
         fixed_left=fixed_left,
         fixed_right=fixed_right,
     )

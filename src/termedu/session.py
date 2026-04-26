@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
-SESSION_TARGET = 24
+DEFAULT_SESSION_TARGET = 24
 HAPPY_STREAK = 5
 SAD_STREAK = 3
 HAPPY_KAOMOJI = "(^_^)"
@@ -22,6 +22,7 @@ class AnswerOutcome:
 
 @dataclass
 class SessionState:
+    target_correct: int = DEFAULT_SESSION_TARGET
     total_correct: int = 0
     correct_streak: int = 0
     incorrect_streak: int = 0
@@ -50,5 +51,5 @@ class SessionState:
             correct_streak=self.correct_streak,
             incorrect_streak=self.incorrect_streak,
             feedback=feedback,
-            completed=self.total_correct >= SESSION_TARGET,
+            completed=self.total_correct >= self.target_correct,
         )
