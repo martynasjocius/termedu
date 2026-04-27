@@ -56,6 +56,7 @@ name = "Mia"
 operation = "multiplication"
 left_max = 12
 right_max = 12
+session_target = 24
 
 # Optional fixed operand mode
 fixed_left = 4
@@ -68,6 +69,7 @@ fixed_left = 4
 - `operation`: optional math operation, default `multiplication`
 - `left_max`: maximum left operand when using a range, default `12`
 - `right_max`: maximum right operand when using a range, default `12`
+- `session_target`: total correct answers required to finish the session, default `24`
 - `fixed_left`: optional fixed left operand instead of using `0..left_max`
 - `fixed_right`: optional fixed right operand instead of using `0..right_max`
 
@@ -75,6 +77,7 @@ fixed_left = 4
 
 - If no config file exists, the app should still run with defaults.
 - If the config file exists but is invalid, the app should fail with a clear human-readable error.
+- `session_target` must be a positive integer when provided.
 - CLI argument for learner name overrides config `name`.
 - If neither CLI arg nor config provides a name, the session still runs.
 - For version 1, default `operation` is `multiplication`.
@@ -104,7 +107,7 @@ Version 1 uses a fixed lesson domain for one operation and one operand matrix.
 - Operation: multiplication
 - Left range: `0..12`
 - Right range: `0..12`
-- Session completion target: 24 correct answers
+- Session completion target: 24 correct answers via the default `session_target`
 
 ### Operand selection
 
@@ -199,12 +202,12 @@ Exact kaomoji may vary, but should stay simple and readable.
 
 ## Session End
 
-The game ends when the learner has given 24 correct answers in the current session.
+The game ends when the learner has given the configured number of correct answers in the current session.
 
 Important:
 
-- This is 24 total correct answers, not necessarily consecutive.
-- After the 24th correct answer, the app should exit gracefully.
+- The default is 24 total correct answers, not necessarily consecutive.
+- After the final required correct answer, the app should exit gracefully.
 - A short completion message is acceptable but not required.
 
 ## Logging

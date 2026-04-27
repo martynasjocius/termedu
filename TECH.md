@@ -110,6 +110,7 @@ Add tests for at least:
 - config loading with defaults
 - config loading with valid TOML
 - invalid config handling
+- invalid `session_target` handling, including rejecting `0`
 - CLI name overriding config name
 - question generation for ranged operands
 - question generation with `fixed_left`
@@ -119,6 +120,7 @@ Add tests for at least:
 - streak tracking for 5 correct answers
 - streak tracking for 3 incorrect answers
 - session completion after 24 correct answers
+- session completion after a configured positive `session_target`
 - log file naming behavior
 
 ### Testing boundaries
@@ -217,5 +219,6 @@ An implementation aligns with this document when:
 3. The app exposes a `termedu` entry point.
 4. The entry point works regardless of the current working directory.
 5. Config is read from `~/.termedu` using a standard format, preferably TOML.
-6. The project includes unit tests using `pytest`.
+6. The optional `session_target` config value is supported, defaults to `24`, and rejects non-positive values with a clear error.
+7. The project includes unit tests using `pytest`.
 7. The implementation keeps dependencies minimal and uses the standard library where practical.
