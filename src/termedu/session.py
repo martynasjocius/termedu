@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import random
 
 
 DEFAULT_SESSION_TARGET = 24
 HAPPY_STREAK = 5
 SAD_STREAK = 3
-HAPPY_KAOMOJI = "(^_^)"
-SAD_KAOMOJI = "(T_T)"
+HAPPY_KAOMOJI = ("(^_^)", "(^o^)", "(^-^)", "(^_~)")
+SAD_KAOMOJI = ("(T_T)", "(;_;)", "(>_<)", "(-_-;)")
 
 
 @dataclass(frozen=True)
@@ -37,13 +38,13 @@ class SessionState:
             self.incorrect_streak = 0
 
             if self.correct_streak > 0 and self.correct_streak % HAPPY_STREAK == 0:
-                feedback = HAPPY_KAOMOJI
+                feedback = random.choice(HAPPY_KAOMOJI)
         else:
             self.incorrect_streak += 1
             self.correct_streak = 0
 
             if self.incorrect_streak > 0 and self.incorrect_streak % SAD_STREAK == 0:
-                feedback = SAD_KAOMOJI
+                feedback = random.choice(SAD_KAOMOJI)
 
         return AnswerOutcome(
             is_correct=is_correct,

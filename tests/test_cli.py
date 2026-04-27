@@ -13,6 +13,7 @@ from datetime import datetime
 from termedu.cli import INTERRUPTED_MESSAGE, LessonInterrupted, main, run_lesson
 from termedu.config import AppConfig
 from termedu.logging_utils import LogWriteError
+from termedu.session import HAPPY_KAOMOJI, SAD_KAOMOJI
 
 
 class TtyStringIO(StringIO):
@@ -59,7 +60,7 @@ def test_run_lesson_uses_fixed_operands_and_finishes_after_twenty_four_correct_a
 
     assert transcript.count("4 x 3 = 12 Yes!\n") == 24
     assert "4 x 3 = 4 x 3 = 12 Yes!\n" not in transcript
-    assert "(^_^)" in transcript
+    assert any(kaomoji in transcript for kaomoji in HAPPY_KAOMOJI)
 
 
 def test_run_lesson_stops_after_configured_session_target() -> None:
@@ -85,7 +86,7 @@ def test_run_lesson_prints_correct_answer_for_incorrect_answers_and_continues() 
 
     assert "4 x 3 = 11 No... 12\n" in transcript
     assert "4 x 3 = 4 x 3 = 11 No... 12\n" not in transcript
-    assert transcript.count("(T_T)") == 1
+    assert sum(transcript.count(kaomoji) for kaomoji in SAD_KAOMOJI) == 1
     assert transcript.endswith("4 x 3 = 12 Yes!\n")
 
 

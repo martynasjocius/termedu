@@ -193,12 +193,20 @@ If the learner answers incorrectly 3 times in a row:
 
 ### Kaomoji guidance
 
-Use simple friendly text kaomoji that render in plain terminals. Examples:
+Use simple friendly text kaomoji that render in plain terminals.
 
-- happy: `(^_^)`
-- sad: `(T_T)`
+For version 1:
 
-Exact kaomoji may vary, but should stay simple and readable.
+- define at least 4 happy kaomoji options
+- define at least 4 sad kaomoji options
+- when a happy streak trigger happens, print one randomly chosen happy kaomoji from the happy pool
+- when a sad streak trigger happens, print one randomly chosen sad kaomoji from the sad pool
+- randomness may repeat the same kaomoji across triggers; uniqueness is not required
+
+Examples:
+
+- happy: `(^_^)`, `(＾▽＾)`, `(≧◡≦)`, `(⌒‿⌒)`
+- sad: `(T_T)`, `(；_；)`, `(╥_╥)`, `(︶︹︺)`
 
 ## Session End
 
@@ -321,8 +329,8 @@ An implementation should be considered correct when all of the following are tru
 5. The app asks one random question at a time and checks the answer on Enter.
 6. Correct answers append `Yes!` on the same line.
 7. Incorrect answers append `No...` on the same line.
-8. Five correct answers in a row print a happy kaomoji with one blank line above and below.
-9. Three incorrect answers in a row print a sad kaomoji with one blank line above and below.
+8. Five correct answers in a row print one randomly selected happy kaomoji from a pool of at least 4, with one blank line above and below.
+9. Three incorrect answers in a row print one randomly selected sad kaomoji from a pool of at least 4, with one blank line above and below.
 10. The session ends after 24 correct answers total.
 11. A log file is created in the user home directory for every session.
 12. Fixed operand mode works for either side.

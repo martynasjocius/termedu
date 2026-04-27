@@ -1,56 +1,58 @@
 from __future__ import annotations
 
+from termedu import session as session_module
 from termedu.session import DEFAULT_SESSION_TARGET, HAPPY_KAOMOJI, SAD_KAOMOJI, SessionState
 
 
-def test_happy_feedback_after_five_correct_answers() -> None:
+def test_kaomoji_pools_have_minimum_size() -> None:
+    assert len(HAPPY_KAOMOJI) >= 4
+    assert len(SAD_KAOMOJI) >= 4
+
+
+def test_happy_feedback_uses_happy_pool_at_streak_triggers(monkeypatch) -> None:
     session = SessionState()
+    seen_pools: list[tuple[str, ...]] = []
 
-    outcome = None
-    for _ in range(5):
-        outcome = session.record_answer(True)
+    def fake_choice(pool: tuple[str, ...]) -> str:
+        seen_pools.append(pool)
+        return pool[1]
 
-    assert outcome is not None
-    assert outcome.feedback == HAPPY_KAOMOJI
-    assert outcome.correct_streak == 5
-    assert outcome.incorrect_streak == 0
-
-
-def test_happy_feedback_repeats_on_longer_correct_streaks() -> None:
-    session = SessionState()
+    monkeypatch.setattr(session_module.random, "choice", fake_choice)
 
     feedback_answers: list[int] = []
+    feedback_values: list[str] = []
     for answer_number in range(1, 11):
         outcome = session.record_answer(True)
-        if outcome.feedback == HAPPY_KAOMOJI:
+        if outcome.feedback is not None:
             feedback_answers.append(answer_number)
+            feedback_values.append(outcome.feedback)
 
     assert feedback_answers == [5, 10]
+    assert feedback_values == [HAPPY_KAOMOJI[1], HAPPY_KAOMOJI[1]]
+    assert seen_pools == [HAPPY_KAOMOJI, HAPPY_KAOMOJI]
 
 
-def test_sad_feedback_after_three_incorrect_answers() -> None:
+def test_sad_feedback_uses_sad_pool_at_streak_triggers(monkeypatch) -> None:
     session = SessionState()
+    seen_pools: list[tuple[str, ...]] = []
 
-    outcome = None
-    for _ in range(3):
-        outcome = session.record_answer(False)
+    def fake_choice(pool: tuple[str, ...]) -> str:
+        seen_pools.append(pool)
+        return pool[2]
 
-    assert outcome is not None
-    assert outcome.feedback == SAD_KAOMOJI
-    assert outcome.correct_streak == 0
-    assert outcome.incorrect_streak == 3
-
-
-def test_sad_feedback_repeats_on_longer_incorrect_streaks() -> None:
-    session = SessionState()
+    monkeypatch.setattr(session_module.random, "choice", fake_choice)
 
     feedback_answers: list[int] = []
+    feedback_values: list[str] = []
     for answer_number in range(1, 7):
         outcome = session.record_answer(False)
-        if outcome.feedback == SAD_KAOMOJI:
+        if outcome.feedback is not None:
             feedback_answers.append(answer_number)
+            feedback_values.append(outcome.feedback)
 
     assert feedback_answers == [3, 6]
+    assert feedback_values == [SAD_KAOMOJI[2], SAD_KAOMOJI[2]]
+    assert seen_pools == [SAD_KAOMOJI, SAD_KAOMOJI]
 
 
 def test_session_completes_after_twenty_four_correct_answers() -> None:
