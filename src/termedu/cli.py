@@ -72,11 +72,18 @@ def _write_session_log(
     config: AppConfig,
     session_started_at: datetime,
     transcript_lines: list[str],
+    session: SessionState,
     *,
     log_home_dir: Path | None,
 ) -> None:
     log_path = build_session_log_path(config.name, session_started_at, home_dir=log_home_dir)
-    log_content = render_session_log(config.name, session_started_at, transcript_lines)
+    log_content = render_session_log(
+        config.name,
+        session_started_at,
+        transcript_lines,
+        earned_coins=session.earned_coins,
+        total_correct=session.total_correct,
+    )
 
     write_session_log(log_path, log_content)
 
@@ -91,11 +98,15 @@ def run_lesson(
     started_at: datetime | None = None,
 ) -> None:
     lesson_rng = rng or random.Random()
-    session = SessionState(target_correct=config.session_target)
+    session = SessionState(
+        coin_target=config.coin_target,
+        correct_reward=config.correct_reward,
+        wrong_penalty=config.wrong_penalty,
+    )
     session_started_at = started_at or datetime.now()
     transcript_lines: list[str] = []
 
-    while session.total_correct < config.session_target:
+    while True:
         question = generate_question(config, lesson_rng)
         output.write(question.prompt)
         output.flush()
@@ -112,6 +123,7 @@ def run_lesson(
                 config,
                 session_started_at,
                 transcript_lines,
+                session,
                 log_home_dir=log_home_dir,
             )
 
@@ -133,7 +145,16 @@ def run_lesson(
 
         output.flush()
 
-    _write_session_log(config, session_started_at, transcript_lines, log_home_dir=log_home_dir)
+        if outcome.completed:
+            break
+
+    _write_session_log(
+        config,
+        session_started_at,
+        transcript_lines,
+        session,
+        log_home_dir=log_home_dir,
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:

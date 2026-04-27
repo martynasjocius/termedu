@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.machinery
 import importlib.util
+from decimal import Decimal
 from io import StringIO
 import os
 from pathlib import Path
@@ -51,21 +52,25 @@ def load_wrapper_module():
 
 def test_run_lesson_uses_fixed_operands_and_finishes_after_twenty_four_correct_answers() -> None:
     config = AppConfig(fixed_left=4, fixed_right=3)
-    input_stream = StringIO("12\n" * 24)
+    input_stream = StringIO("12\n" * 20)
     output = StringIO()
 
     run_lesson(config, input_stream=input_stream, output=output, rng=random.Random(0))
 
     transcript = output.getvalue()
 
-    assert transcript.count("4 x 3 = 12 Yes!\n") == 24
+    assert transcript.count("4 x 3 = 12 Yes!\n") == 20
     assert "4 x 3 = 4 x 3 = 12 Yes!\n" not in transcript
     assert any(kaomoji in transcript for kaomoji in HAPPY_KAOMOJI)
 
 
-def test_run_lesson_stops_after_configured_session_target() -> None:
-    config = AppConfig(fixed_left=4, fixed_right=3, session_target=3)
-    input_stream = StringIO("12\n" * 24)
+def test_run_lesson_stops_after_configured_coin_target() -> None:
+    config = AppConfig(
+        fixed_left=4,
+        fixed_right=3,
+        coin_target=Decimal("0.15"),
+    )
+    input_stream = StringIO("12\n" * 20)
     output = StringIO()
 
     run_lesson(config, input_stream=input_stream, output=output, rng=random.Random(0))
@@ -77,7 +82,7 @@ def test_run_lesson_stops_after_configured_session_target() -> None:
 
 def test_run_lesson_prints_correct_answer_for_incorrect_answers_and_continues() -> None:
     config = AppConfig(fixed_left=4, fixed_right=3)
-    input_stream = StringIO("11\n11\n11\n" + ("12\n" * 24))
+    input_stream = StringIO("11\n11\n11\n" + ("12\n" * 26))
     output = StringIO()
 
     run_lesson(config, input_stream=input_stream, output=output, rng=random.Random(0))
@@ -92,7 +97,7 @@ def test_run_lesson_prints_correct_answer_for_incorrect_answers_and_continues() 
 
 def test_run_lesson_rewrites_the_previous_line_for_tty_output() -> None:
     config = AppConfig(fixed_left=4, fixed_right=3)
-    input_stream = StringIO("12\n" * 24)
+    input_stream = StringIO("12\n" * 20)
     output = TtyStringIO()
 
     run_lesson(config, input_stream=input_stream, output=output, rng=random.Random(0))
@@ -104,7 +109,7 @@ def test_run_lesson_rewrites_the_previous_line_for_tty_output() -> None:
 
 def test_run_lesson_rewrites_the_previous_line_for_tty_incorrect_answers() -> None:
     config = AppConfig(fixed_left=4, fixed_right=3)
-    input_stream = StringIO("11\n" + ("12\n" * 24))
+    input_stream = StringIO("11\n" + ("12\n" * 22))
     output = TtyStringIO()
 
     run_lesson(config, input_stream=input_stream, output=output, rng=random.Random(0))
@@ -116,7 +121,7 @@ def test_run_lesson_rewrites_the_previous_line_for_tty_incorrect_answers() -> No
 
 def test_run_lesson_normalizes_crlf_answers_before_rendering_verdict() -> None:
     config = AppConfig(fixed_left=4, fixed_right=3)
-    input_stream = StringIO("12\r\n" * 24)
+    input_stream = StringIO("12\r\n" * 20)
     output = StringIO()
 
     run_lesson(config, input_stream=input_stream, output=output, rng=random.Random(0))
@@ -124,12 +129,12 @@ def test_run_lesson_normalizes_crlf_answers_before_rendering_verdict() -> None:
     transcript = output.getvalue()
 
     assert "4 x 3 = 12\r Yes!\n" not in transcript
-    assert transcript.count("4 x 3 = 12 Yes!\n") == 24
+    assert transcript.count("4 x 3 = 12 Yes!\n") == 20
 
 
 def test_run_lesson_writes_correct_answer_for_incorrect_answers_to_session_log(tmp_path: Path) -> None:
     config = AppConfig(name="Ada", fixed_left=4, fixed_right=3)
-    input_stream = StringIO("11\n" + ("12\n" * 24))
+    input_stream = StringIO("11\n" + ("12\n" * 23))
     output = StringIO()
     started_at = datetime(2026, 4, 26, 13, 14, 15)
 
@@ -146,11 +151,13 @@ def test_run_lesson_writes_correct_answer_for_incorrect_answers_to_session_log(t
     log_lines = log_path.read_text(encoding="utf-8").splitlines()
 
     assert "4 x 3 = 11 No... 12" in log_lines
+    assert "earned_coins: 1.0" in log_lines
+    assert "total_correct: 22" in log_lines
 
 
 def test_run_lesson_writes_session_log_in_home_directory(tmp_path: Path) -> None:
     config = AppConfig(name="Ada / Babbage", fixed_left=4, fixed_right=3)
-    input_stream = StringIO("12\n" * 24)
+    input_stream = StringIO("12\n" * 20)
     output = StringIO()
     started_at = datetime(2026, 4, 26, 13, 14, 15)
 
@@ -202,6 +209,8 @@ def test_run_lesson_interrupts_cleanly_and_persists_partial_log(tmp_path: Path) 
 
     assert "4 x 3 = 12 Yes!" in log_lines
     assert INTERRUPTED_MESSAGE in log_lines
+    assert "earned_coins: 0.05" in log_lines
+    assert "total_correct: 1" in log_lines
 
 
 def test_main_reports_log_write_failures(monkeypatch) -> None:

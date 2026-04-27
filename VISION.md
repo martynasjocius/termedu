@@ -56,7 +56,9 @@ name = "Mia"
 operation = "multiplication"
 left_max = 12
 right_max = 12
-session_target = 24
+coin_target = 1.0
+correct_reward = 0.05
+wrong_penalty = 0.1
 
 # Optional fixed operand mode
 fixed_left = 4
@@ -69,7 +71,9 @@ fixed_left = 4
 - `operation`: optional math operation, default `multiplication`
 - `left_max`: maximum left operand when using a range, default `12`
 - `right_max`: maximum right operand when using a range, default `12`
-- `session_target`: total correct answers required to finish the session, default `24`
+- `coin_target`: earned-coin goal required to finish the session, default `1.0`
+- `correct_reward`: coins added for each correct answer, default `0.05`
+- `wrong_penalty`: coins subtracted for each incorrect answer, default `0.1`
 - `fixed_left`: optional fixed left operand instead of using `0..left_max`
 - `fixed_right`: optional fixed right operand instead of using `0..right_max`
 
@@ -77,7 +81,8 @@ fixed_left = 4
 
 - If no config file exists, the app should still run with defaults.
 - If the config file exists but is invalid, the app should fail with a clear human-readable error.
-- `session_target` must be a positive integer when provided.
+- `coin_target`, `correct_reward`, and `wrong_penalty` must be positive numbers when provided.
+- If deprecated `session_target` is provided, the app should fail with a clear migration message that points to `coin_target`.
 - CLI argument for learner name overrides config `name`.
 - If neither CLI arg nor config provides a name, the session still runs.
 - For version 1, default `operation` is `multiplication`.
@@ -107,7 +112,7 @@ Version 1 uses a fixed lesson domain for one operation and one operand matrix.
 - Operation: multiplication
 - Left range: `0..12`
 - Right range: `0..12`
-- Session completion target: 24 correct answers via the default `session_target`
+- Session completion target: earn `1.0` coin via the default coin settings
 
 ### Operand selection
 
@@ -210,12 +215,14 @@ Examples:
 
 ## Session End
 
-The game ends when the learner has given the configured number of correct answers in the current session.
+The game ends when the learner reaches or exceeds the configured earned-coin target in the current session.
 
 Important:
 
-- The default is 24 total correct answers, not necessarily consecutive.
-- After the final required correct answer, the app should exit gracefully.
+- The default coin system starts at `0.0`, adds `0.05` for each correct answer, and subtracts `0.1` for each incorrect answer.
+- The default completion target is `1.0` coin.
+- The balance may go below `0.0`; version 1 does not need a floor unless implementation constraints require one, but behavior must be consistent and tested.
+- After the answer that reaches or exceeds the target, the app should exit gracefully.
 - A short completion message is acceptable but not required.
 
 ## Logging
@@ -243,6 +250,7 @@ The exact format is flexible, but it should be plain text and include at least:
 - every question asked
 - learner answer
 - whether the answer was correct
+- earned coins at end
 - total correct answers at end
 - session end timestamp
 
@@ -260,6 +268,7 @@ answer: 12
 result: correct
 ...
 session_end: 2026-04-26T14:36:41
+earned_coins: 1.05
 total_correct: 24
 ```
 
@@ -272,14 +281,14 @@ If nothing is configured:
 - right range = `0..12`
 - no fixed operand
 - no learner name
-- finish after 24 correct answers
+- finish after reaching `1.0` coin with `+0.05` for correct and `-0.1` for incorrect answers
 
 ## Non-Goals For Version 1
 
 Do not add these unless explicitly requested later:
 
 - multiple screens or menus
-- scoring systems beyond the specified streak behavior
+- extra scoring or currency systems beyond the specified earned-coin session progress
 - persistence of progress across sessions
 - graphics or non-terminal UI
 - adaptive difficulty
@@ -303,7 +312,7 @@ Optimize for a tiny reliable CLI program.
 1. Correct config handling.
 2. Correct question generation from ranges or fixed operands.
 3. Correct streak handling.
-4. Correct session termination after 24 correct answers.
+4. Correct coin accumulation and session termination at the configured threshold.
 5. Correct per-session log file creation.
 6. Pleasant terminal output.
 
@@ -331,7 +340,7 @@ An implementation should be considered correct when all of the following are tru
 7. Incorrect answers append `No...` on the same line.
 8. Five correct answers in a row print one randomly selected happy kaomoji from a pool of at least 4, with one blank line above and below.
 9. Three incorrect answers in a row print one randomly selected sad kaomoji from a pool of at least 4, with one blank line above and below.
-10. The session ends after 24 correct answers total.
+10. The session ends when earned coins reach or exceed the configured `coin_target`.
 11. A log file is created in the user home directory for every session.
 12. Fixed operand mode works for either side.
 

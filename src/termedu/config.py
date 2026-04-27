@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 from pathlib import Path
 import tomllib
 
@@ -15,7 +16,9 @@ class AppConfig:
     operation: str = "multiplication"
     left_max: int = 12
     right_max: int = 12
-    session_target: int = 24
+    coin_target: Decimal = Decimal("1.0")
+    correct_reward: Decimal = Decimal("0.05")
+    wrong_penalty: Decimal = Decimal("0.1")
     fixed_left: int | None = None
     fixed_right: int | None = None
 
@@ -63,6 +66,21 @@ def _read_required_positive_int(
     return value
 
 
+def _read_required_positive_decimal(
+    raw: dict[str, object],
+    key: str,
+    config_path: Path,
+    *,
+    default: Decimal,
+) -> Decimal:
+    value = raw.get(key, default)
+    if type(value) not in (int, float, Decimal) or value <= 0:
+        raise ConfigError(
+            f"Invalid config file at {config_path}: {key} must be a positive number."
+        )
+    return Decimal(str(value))
+
+
 def _read_optional_non_negative_int(
     raw: dict[str, object], key: str, config_path: Path
 ) -> int | None:
@@ -89,15 +107,32 @@ def load_config(config_path: Path | None = None) -> AppConfig:
     except OSError as exc:
         raise ConfigError(f"Could not read config file at {resolved_path}: {exc}") from exc
 
+    if "session_target" in raw:
+        raise ConfigError(
+            f"Invalid config file at {resolved_path}: session_target is deprecated; use coin_target instead."
+        )
+
     name = _read_optional_string(raw, "name", resolved_path)
     operation = _read_optional_string(raw, "operation", resolved_path) or "multiplication"
     left_max = _read_required_non_negative_int(raw, "left_max", resolved_path, default=12)
     right_max = _read_required_non_negative_int(raw, "right_max", resolved_path, default=12)
-    session_target = _read_required_positive_int(
+    coin_target = _read_required_positive_decimal(
         raw,
-        "session_target",
+        "coin_target",
         resolved_path,
-        default=24,
+        default=Decimal("1.0"),
+    )
+    correct_reward = _read_required_positive_decimal(
+        raw,
+        "correct_reward",
+        resolved_path,
+        default=Decimal("0.05"),
+    )
+    wrong_penalty = _read_required_positive_decimal(
+        raw,
+        "wrong_penalty",
+        resolved_path,
+        default=Decimal("0.1"),
     )
     fixed_left = _read_optional_non_negative_int(raw, "fixed_left", resolved_path)
     fixed_right = _read_optional_non_negative_int(raw, "fixed_right", resolved_path)
@@ -112,7 +147,9 @@ def load_config(config_path: Path | None = None) -> AppConfig:
         operation=operation,
         left_max=left_max,
         right_max=right_max,
-        session_target=session_target,
+        coin_target=coin_target,
+        correct_reward=correct_reward,
+        wrong_penalty=wrong_penalty,
         fixed_left=fixed_left,
         fixed_right=fixed_right,
     )

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 
-from termedu.logging_utils import build_session_log_path, sanitize_learner_name
+from termedu.logging_utils import build_session_log_path, format_coin_amount, sanitize_learner_name
 
 
 def test_sanitize_learner_name_replaces_unsafe_characters() -> None:
@@ -21,3 +22,9 @@ def test_build_session_log_path_uses_home_directory_and_safe_timestamp(tmp_path:
     log_path = build_session_log_path("Ada / Babbage", started_at, home_dir=tmp_path)
 
     assert log_path == tmp_path / "termedu-Ada-Babbage-20260426T131415.txt"
+
+
+def test_format_coin_amount_preserves_at_least_one_decimal_place() -> None:
+    assert format_coin_amount(Decimal("1.0")) == "1.0"
+    assert format_coin_amount(Decimal("1.05")) == "1.05"
+    assert format_coin_amount(Decimal("-0.1")) == "-0.1"

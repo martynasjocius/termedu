@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 import random
 
 
-DEFAULT_SESSION_TARGET = 24
+DEFAULT_COIN_TARGET = Decimal("1.0")
+DEFAULT_CORRECT_REWARD = Decimal("0.05")
+DEFAULT_WRONG_PENALTY = Decimal("0.1")
 HAPPY_STREAK = 5
 SAD_STREAK = 3
 HAPPY_KAOMOJI = ("(^_^)", "(^o^)", "(^-^)", "(^_~)")
@@ -14,6 +17,7 @@ SAD_KAOMOJI = ("(T_T)", "(;_;)", "(>_<)", "(-_-;)")
 @dataclass(frozen=True)
 class AnswerOutcome:
     is_correct: bool
+    earned_coins: Decimal
     total_correct: int
     correct_streak: int
     incorrect_streak: int
@@ -23,7 +27,10 @@ class AnswerOutcome:
 
 @dataclass
 class SessionState:
-    target_correct: int = DEFAULT_SESSION_TARGET
+    coin_target: Decimal = DEFAULT_COIN_TARGET
+    correct_reward: Decimal = DEFAULT_CORRECT_REWARD
+    wrong_penalty: Decimal = DEFAULT_WRONG_PENALTY
+    earned_coins: Decimal = Decimal("0.0")
     total_correct: int = 0
     correct_streak: int = 0
     incorrect_streak: int = 0
@@ -33,6 +40,7 @@ class SessionState:
         feedback = None
 
         if is_correct:
+            self.earned_coins += self.correct_reward
             self.total_correct += 1
             self.correct_streak += 1
             self.incorrect_streak = 0
@@ -40,6 +48,7 @@ class SessionState:
             if self.correct_streak > 0 and self.correct_streak % HAPPY_STREAK == 0:
                 feedback = random.choice(HAPPY_KAOMOJI)
         else:
+            self.earned_coins -= self.wrong_penalty
             self.incorrect_streak += 1
             self.correct_streak = 0
 
@@ -48,9 +57,10 @@ class SessionState:
 
         return AnswerOutcome(
             is_correct=is_correct,
+            earned_coins=self.earned_coins,
             total_correct=self.total_correct,
             correct_streak=self.correct_streak,
             incorrect_streak=self.incorrect_streak,
             feedback=feedback,
-            completed=self.total_correct >= self.target_correct,
+            completed=self.earned_coins >= self.coin_target,
         )

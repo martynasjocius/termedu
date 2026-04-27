@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 import re
 
@@ -12,6 +13,13 @@ _INVALID_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9._-]+")
 
 class LogWriteError(Exception):
     """Raised when a session log cannot be written."""
+
+
+def format_coin_amount(value: Decimal) -> str:
+    rendered = format(value, "f").rstrip("0")
+    if rendered.endswith("."):
+        rendered += "0"
+    return rendered or "0.0"
 
 
 def sanitize_learner_name(name: str | None) -> str:
@@ -43,6 +51,9 @@ def render_session_log(
     learner_name: str | None,
     started_at: datetime,
     transcript_lines: list[str],
+    *,
+    earned_coins: Decimal,
+    total_correct: int,
 ) -> str:
     safe_name = sanitize_learner_name(learner_name)
     header_lines = [
@@ -51,7 +62,13 @@ def render_session_log(
         "",
     ]
 
-    return "\n".join(header_lines + transcript_lines) + "\n"
+    footer_lines = [
+        "",
+        f"earned_coins: {format_coin_amount(earned_coins)}",
+        f"total_correct: {total_correct}",
+    ]
+
+    return "\n".join(header_lines + transcript_lines + footer_lines) + "\n"
 
 
 def write_session_log(path: Path, content: str) -> None:

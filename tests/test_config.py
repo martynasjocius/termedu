@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -28,7 +29,7 @@ def test_load_config_uses_home_directory_by_default(tmp_path: Path, monkeypatch:
 def test_load_config_reads_valid_toml(tmp_path: Path) -> None:
     config_path = tmp_path / ".termedu"
     config_path.write_text(
-        'name = "Ada"\noperation = "multiplication"\nleft_max = 9\nright_max = 8\nsession_target = 18\nfixed_left = 4\n',
+        'name = "Ada"\noperation = "multiplication"\nleft_max = 9\nright_max = 8\ncoin_target = 1.5\ncorrect_reward = 0.25\nwrong_penalty = 0.2\nfixed_left = 4\n',
         encoding="utf-8",
     )
 
@@ -39,7 +40,9 @@ def test_load_config_reads_valid_toml(tmp_path: Path) -> None:
         operation="multiplication",
         left_max=9,
         right_max=8,
-        session_target=18,
+        coin_target=Decimal("1.5"),
+        correct_reward=Decimal("0.25"),
+        wrong_penalty=Decimal("0.2"),
         fixed_left=4,
     )
 
@@ -69,17 +72,33 @@ def test_load_config_rejects_negative_fixed_operand(tmp_path: Path) -> None:
         load_config(config_path)
 
 
-def test_load_config_rejects_negative_session_target(tmp_path: Path) -> None:
+def test_load_config_rejects_non_positive_coin_target(tmp_path: Path) -> None:
     config_path = tmp_path / ".termedu"
-    config_path.write_text("session_target = -1\n", encoding="utf-8")
+    config_path.write_text("coin_target = 0\n", encoding="utf-8")
 
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigError, match="coin_target must be a positive number"):
         load_config(config_path)
 
 
-def test_load_config_rejects_zero_session_target(tmp_path: Path) -> None:
+def test_load_config_rejects_non_positive_correct_reward(tmp_path: Path) -> None:
     config_path = tmp_path / ".termedu"
-    config_path.write_text("session_target = 0\n", encoding="utf-8")
+    config_path.write_text("correct_reward = -0.5\n", encoding="utf-8")
 
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigError, match="correct_reward must be a positive number"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_non_positive_wrong_penalty(tmp_path: Path) -> None:
+    config_path = tmp_path / ".termedu"
+    config_path.write_text("wrong_penalty = 0\n", encoding="utf-8")
+
+    with pytest.raises(ConfigError, match="wrong_penalty must be a positive number"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_deprecated_session_target(tmp_path: Path) -> None:
+    config_path = tmp_path / ".termedu"
+    config_path.write_text("session_target = 24\n", encoding="utf-8")
+
+    with pytest.raises(ConfigError, match="session_target is deprecated; use coin_target instead"):
         load_config(config_path)

@@ -110,7 +110,8 @@ Add tests for at least:
 - config loading with defaults
 - config loading with valid TOML
 - invalid config handling
-- invalid `session_target` handling, including rejecting `0`
+- invalid earned-coin config handling, including rejecting non-positive `coin_target`, `correct_reward`, and `wrong_penalty`
+- deprecated `session_target` handling with a clear migration error
 - CLI name overriding config name
 - question generation for ranged operands
 - question generation with `fixed_left`
@@ -119,8 +120,10 @@ Add tests for at least:
 - incorrect answer evaluation
 - streak tracking for 5 correct answers
 - streak tracking for 3 incorrect answers
-- session completion after 24 correct answers
-- session completion after a configured positive `session_target`
+- coin accumulation for correct answers
+- coin subtraction for incorrect answers
+- session completion after reaching the default coin target
+- session completion after a configured positive `coin_target`
 - log file naming behavior
 
 ### Testing boundaries
@@ -167,6 +170,7 @@ Preferred standard library tools:
 - Use type hints throughout the codebase.
 - Keep public behavior explicit and easy to test.
 - Add concise docstrings where they clarify non-obvious behavior.
+- Avoid floating-point drift in coin tracking; prefer `decimal.Decimal` or an integer minor-unit representation.
 
 ## Error Handling
 
@@ -219,6 +223,6 @@ An implementation aligns with this document when:
 3. The app exposes a `termedu` entry point.
 4. The entry point works regardless of the current working directory.
 5. Config is read from `~/.termedu` using a standard format, preferably TOML.
-6. The optional `session_target` config value is supported, defaults to `24`, and rejects non-positive values with a clear error.
+6. The optional `coin_target`, `correct_reward`, and `wrong_penalty` config values are supported with defaults `1.0`, `0.05`, and `0.1`, reject non-positive values with clear errors, and deprecated `session_target` fails with a migration-friendly error.
 7. The project includes unit tests using `pytest`.
 7. The implementation keeps dependencies minimal and uses the standard library where practical.
