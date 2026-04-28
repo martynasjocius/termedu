@@ -61,6 +61,15 @@ def _normalize_answer_text(raw_answer: str) -> str:
     return raw_answer.rstrip("\r\n")
 
 
+def _is_valid_answer_text(answer_text: str) -> bool:
+    try:
+        int(answer_text.strip())
+    except ValueError:
+        return False
+
+    return True
+
+
 def _build_verdict(is_correct: bool, correct_answer: int) -> str:
     if is_correct:
         return CORRECT_VERDICT
@@ -105,9 +114,9 @@ def run_lesson(
     )
     session_started_at = started_at or datetime.now()
     transcript_lines: list[str] = []
+    question = generate_question(config, lesson_rng)
 
     while True:
-        question = generate_question(config, lesson_rng)
         output.write(question.prompt)
         output.flush()
 
@@ -133,6 +142,10 @@ def run_lesson(
             raise EOFError("Input ended before the lesson completed.")
 
         answer_text = _normalize_answer_text(raw_answer)
+
+        if not _is_valid_answer_text(answer_text):
+            continue
+
         outcome = session.record_answer(is_correct_answer(question, answer_text))
         verdict = _build_verdict(outcome.is_correct, question.answer)
 
@@ -147,6 +160,8 @@ def run_lesson(
 
         if outcome.completed:
             break
+
+        question = generate_question(config, lesson_rng)
 
     _write_session_log(
         config,

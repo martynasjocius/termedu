@@ -132,6 +132,71 @@ def test_run_lesson_normalizes_crlf_answers_before_rendering_verdict() -> None:
     assert transcript.count("4 x 3 = 12 Yes!\n") == 20
 
 
+def test_run_lesson_repeats_blank_and_invalid_answers_without_scoring(tmp_path: Path) -> None:
+    config = AppConfig(
+        name="Ada",
+        fixed_left=4,
+        fixed_right=3,
+        coin_target=Decimal("0.1"),
+    )
+    input_stream = StringIO("\nabc\n12\n12\n")
+    output = StringIO()
+    started_at = datetime(2026, 4, 26, 13, 14, 15)
+
+    run_lesson(
+        config,
+        input_stream=input_stream,
+        output=output,
+        rng=random.Random(0),
+        log_home_dir=tmp_path,
+        started_at=started_at,
+    )
+
+    transcript = output.getvalue()
+    log_path = tmp_path / "termedu-Ada-20260426T131415.txt"
+    log_lines = log_path.read_text(encoding="utf-8").splitlines()
+
+    assert transcript.count("4 x 3 = ") == 4
+    assert transcript.count("12 Yes!\n") == 2
+    assert "No..." not in transcript
+    assert log_lines.count("4 x 3 = 12 Yes!") == 2
+    assert not any("abc" in line for line in log_lines)
+    assert not any("No..." in line for line in log_lines)
+    assert "earned_coins: 0.1" in log_lines
+    assert "total_correct: 2" in log_lines
+
+
+def test_run_lesson_retries_the_same_ranged_question_after_invalid_answers(tmp_path: Path) -> None:
+    config = AppConfig(
+        name="Ada",
+        left_max=9,
+        right_max=9,
+        coin_target=Decimal("0.05"),
+    )
+    input_stream = StringIO("\nabc\n36\n")
+    output = StringIO()
+    started_at = datetime(2026, 4, 26, 13, 14, 15)
+
+    run_lesson(
+        config,
+        input_stream=input_stream,
+        output=output,
+        rng=random.Random(0),
+        log_home_dir=tmp_path,
+        started_at=started_at,
+    )
+
+    transcript = output.getvalue()
+    log_path = tmp_path / "termedu-Ada-20260426T131415.txt"
+    log_lines = log_path.read_text(encoding="utf-8").splitlines()
+
+    assert transcript == "6 x 6 = 6 x 6 = 6 x 6 = 36 Yes!\n"
+    assert log_lines.count("6 x 6 = 36 Yes!") == 1
+    assert not any("abc" in line for line in log_lines)
+    assert "earned_coins: 0.05" in log_lines
+    assert "total_correct: 1" in log_lines
+
+
 def test_run_lesson_writes_correct_answer_for_incorrect_answers_to_session_log(tmp_path: Path) -> None:
     config = AppConfig(name="Ada", fixed_left=4, fixed_right=3)
     input_stream = StringIO("11\n" + ("12\n" * 23))
