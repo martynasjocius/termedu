@@ -53,6 +53,9 @@ right_max = 12
 coin_target = 1.0
 correct_reward = 0.05
 wrong_penalty = 0.1
+greeting_messages = ["Ready?", "Let's practice!"]
+success_messages = ["Nice work", "You got it"]
+failure_messages = ["Try again", "Keep thinking"]
 
 # Optional fixed operand mode
 fixed_left = 4
@@ -68,5 +71,8 @@ Public config keys:
 - `coin_target`: earned-coin goal required before the session ends
 - `correct_reward`: coins added for each correct answer
 - `wrong_penalty`: coins subtracted for each incorrect answer
+- `greeting_messages`: optional greetings printed before practice starts
+- `success_messages`: optional feedback choices for correct answers
+- `failure_messages`: optional feedback choices for incorrect answers
 - `fixed_left`: optional fixed left operand
 - `fixed_right`: optional fixed right operand
