@@ -57,6 +57,31 @@ def test_sad_feedback_uses_sad_pool_at_streak_triggers(monkeypatch) -> None:
     assert seen_pools == [SAD_KAOMOJI, SAD_KAOMOJI]
 
 
+def test_custom_feedback_messages_are_printed_with_kaomoji(monkeypatch) -> None:
+    session = SessionState(
+        success_messages=("Nice work",),
+        failure_messages=("Try again",),
+    )
+
+    def fake_choice(pool: tuple[str, ...]) -> str:
+        return pool[0]
+
+    monkeypatch.setattr(session_module.random, "choice", fake_choice)
+
+    success_outcome = None
+    for _ in range(5):
+        success_outcome = session.record_answer(True)
+
+    failure_outcome = None
+    for _ in range(3):
+        failure_outcome = session.record_answer(False)
+
+    assert success_outcome is not None
+    assert failure_outcome is not None
+    assert success_outcome.feedback == f"Nice work {HAPPY_KAOMOJI[0]}"
+    assert failure_outcome.feedback == f"Try again {SAD_KAOMOJI[0]}"
+
+
 def test_session_completes_after_default_coin_target() -> None:
     session = SessionState()
 

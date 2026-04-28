@@ -21,6 +21,9 @@ class AppConfig:
     wrong_penalty: Decimal = Decimal("0.1")
     fixed_left: int | None = None
     fixed_right: int | None = None
+    greeting_messages: tuple[str, ...] = ()
+    success_messages: tuple[str, ...] = ()
+    failure_messages: tuple[str, ...] = ()
 
 
 def default_config_path() -> Path:
@@ -34,6 +37,24 @@ def _read_optional_string(raw: dict[str, object], key: str, config_path: Path) -
     if not isinstance(value, str):
         raise ConfigError(f"Invalid config file at {config_path}: {key} must be a string.")
     return value
+
+
+def _read_optional_string_options(
+    raw: dict[str, object], key: str, config_path: Path
+) -> tuple[str, ...]:
+    value = raw.get(key)
+    if value is None:
+        return ()
+    if not isinstance(value, list) or any(not isinstance(option, str) for option in value):
+        raise ConfigError(f"Invalid config file at {config_path}: {key} must be an array of strings.")
+
+    options = tuple(option.strip() for option in value if option.strip())
+    if not options:
+        raise ConfigError(
+            f"Invalid config file at {config_path}: {key} must include at least one non-empty string."
+        )
+
+    return options
 
 
 def _read_required_non_negative_int(
@@ -136,6 +157,9 @@ def load_config(config_path: Path | None = None) -> AppConfig:
     )
     fixed_left = _read_optional_non_negative_int(raw, "fixed_left", resolved_path)
     fixed_right = _read_optional_non_negative_int(raw, "fixed_right", resolved_path)
+    greeting_messages = _read_optional_string_options(raw, "greeting_messages", resolved_path)
+    success_messages = _read_optional_string_options(raw, "success_messages", resolved_path)
+    failure_messages = _read_optional_string_options(raw, "failure_messages", resolved_path)
 
     if operation != "multiplication":
         raise ConfigError(
@@ -152,4 +176,7 @@ def load_config(config_path: Path | None = None) -> AppConfig:
         wrong_penalty=wrong_penalty,
         fixed_left=fixed_left,
         fixed_right=fixed_right,
+        greeting_messages=greeting_messages,
+        success_messages=success_messages,
+        failure_messages=failure_messages,
     )

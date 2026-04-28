@@ -30,10 +30,19 @@ class SessionState:
     coin_target: Decimal = DEFAULT_COIN_TARGET
     correct_reward: Decimal = DEFAULT_CORRECT_REWARD
     wrong_penalty: Decimal = DEFAULT_WRONG_PENALTY
+    success_messages: tuple[str, ...] = ()
+    failure_messages: tuple[str, ...] = ()
     earned_coins: Decimal = Decimal("0.0")
     total_correct: int = 0
     correct_streak: int = 0
     incorrect_streak: int = 0
+
+    def _build_feedback(self, message_pool: tuple[str, ...], kaomoji_pool: tuple[str, ...]) -> str:
+        kaomoji = random.choice(kaomoji_pool)
+        if not message_pool:
+            return kaomoji
+
+        return f"{random.choice(message_pool)} {kaomoji}"
 
     def record_answer(self, is_correct: bool) -> AnswerOutcome:
         """Record one answer and emit repeated feedback on uninterrupted streak milestones."""
@@ -46,14 +55,14 @@ class SessionState:
             self.incorrect_streak = 0
 
             if self.correct_streak > 0 and self.correct_streak % HAPPY_STREAK == 0:
-                feedback = random.choice(HAPPY_KAOMOJI)
+                feedback = self._build_feedback(self.success_messages, HAPPY_KAOMOJI)
         else:
             self.earned_coins -= self.wrong_penalty
             self.incorrect_streak += 1
             self.correct_streak = 0
 
             if self.incorrect_streak > 0 and self.incorrect_streak % SAD_STREAK == 0:
-                feedback = random.choice(SAD_KAOMOJI)
+                feedback = self._build_feedback(self.failure_messages, SAD_KAOMOJI)
 
         return AnswerOutcome(
             is_correct=is_correct,

@@ -111,10 +111,17 @@ def run_lesson(
         coin_target=config.coin_target,
         correct_reward=config.correct_reward,
         wrong_penalty=config.wrong_penalty,
+        success_messages=config.success_messages,
+        failure_messages=config.failure_messages,
     )
     session_started_at = started_at or datetime.now()
     transcript_lines: list[str] = []
     question = generate_question(config, lesson_rng)
+
+    if config.greeting_messages:
+        greeting = lesson_rng.choice(config.greeting_messages)
+        output.write(f"{greeting}\n\n")
+        transcript_lines.extend([greeting, ""])
 
     while True:
         output.write(question.prompt)
