@@ -10,8 +10,26 @@ DEFAULT_CORRECT_REWARD = Decimal("0.05")
 DEFAULT_WRONG_PENALTY = Decimal("0.1")
 HAPPY_STREAK = 5
 SAD_STREAK = 3
-HAPPY_KAOMOJI = ("(^_^)", "(^o^)", "(^-^)", "(^_~)")
-SAD_KAOMOJI = ("(T_T)", "(;_;)", "(>_<)", "(-_-;)")
+HAPPY_KAOMOJI = (
+    "(^_^)",
+    "(^o^)",
+    "(^-^)",
+    "(^_~)",
+    "(*^_^*)",
+    "(^w^)",
+    "(^.^)",
+    "\\(^o^)/",
+)
+SAD_KAOMOJI = (
+    "(T_T)",
+    "(;_;)",
+    "(>_<)",
+    "(-_-;)",
+    "(T-T)",
+    "(u_u)",
+    "(x_x)",
+    "(._.;)",
+)
 
 
 @dataclass(frozen=True)

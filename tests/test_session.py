@@ -7,8 +7,8 @@ from termedu.session import DEFAULT_COIN_TARGET, HAPPY_KAOMOJI, SAD_KAOMOJI, Ses
 
 
 def test_kaomoji_pools_have_minimum_size() -> None:
-    assert len(HAPPY_KAOMOJI) >= 4
-    assert len(SAD_KAOMOJI) >= 4
+    assert len(HAPPY_KAOMOJI) >= 8
+    assert len(SAD_KAOMOJI) >= 8
 
 
 def test_happy_feedback_uses_happy_pool_at_streak_triggers(monkeypatch) -> None:
