@@ -29,7 +29,7 @@ def test_load_config_uses_home_directory_by_default(tmp_path: Path, monkeypatch:
 def test_load_config_reads_valid_toml(tmp_path: Path) -> None:
     config_path = tmp_path / ".termedu"
     config_path.write_text(
-        'name = "Ada"\noperation = "multiplication"\nleft_max = 9\nright_max = 8\ncoin_target = 1.5\ncorrect_reward = 0.25\nwrong_penalty = 0.2\nfixed_left = 4\ngreeting_messages = ["Ready?", "Begin"]\nsuccess_messages = ["Nice", "Good"]\nfailure_messages = ["Try again"]\n',
+        'name = "Ada"\noperation = "multiplication"\nleft_max = 9\nright_max = 8\ncoin_target = 1.5\ncorrect_reward = 0.25\nwrong_penalty = 0.2\nfixed_left = 4\nyes_message = "Ja!"\nno_message = "Nee..."\ngreeting_messages = ["Ready?", "Begin"]\nsuccess_messages = ["Nice", "Good"]\nfailure_messages = ["Try again"]\n',
         encoding="utf-8",
     )
 
@@ -44,6 +44,8 @@ def test_load_config_reads_valid_toml(tmp_path: Path) -> None:
         correct_reward=Decimal("0.25"),
         wrong_penalty=Decimal("0.2"),
         fixed_left=4,
+        yes_message="Ja!",
+        no_message="Nee...",
         greeting_messages=("Ready?", "Begin"),
         success_messages=("Nice", "Good"),
         failure_messages=("Try again",),
@@ -112,4 +114,13 @@ def test_load_config_rejects_empty_message_options(tmp_path: Path) -> None:
     config_path.write_text('success_messages = ["  "]\n', encoding="utf-8")
 
     with pytest.raises(ConfigError, match="success_messages must include at least one non-empty string"):
+        load_config(config_path)
+
+
+@pytest.mark.parametrize("key", ["yes_message", "no_message"])
+def test_load_config_rejects_empty_yes_or_no_messages(tmp_path: Path, key: str) -> None:
+    config_path = tmp_path / ".termedu"
+    config_path.write_text(f'{key} = "  "\n', encoding="utf-8")
+
+    with pytest.raises(ConfigError, match=f"{key} must be a non-empty string"):
         load_config(config_path)

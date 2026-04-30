@@ -21,6 +21,8 @@ class AppConfig:
     wrong_penalty: Decimal = Decimal("0.1")
     fixed_left: int | None = None
     fixed_right: int | None = None
+    yes_message: str = "Yes!"
+    no_message: str = "No..."
     greeting_messages: tuple[str, ...] = ()
     success_messages: tuple[str, ...] = ()
     failure_messages: tuple[str, ...] = ()
@@ -37,6 +39,26 @@ def _read_optional_string(raw: dict[str, object], key: str, config_path: Path) -
     if not isinstance(value, str):
         raise ConfigError(f"Invalid config file at {config_path}: {key} must be a string.")
     return value
+
+
+def _read_required_non_empty_string(
+    raw: dict[str, object],
+    key: str,
+    config_path: Path,
+    *,
+    default: str,
+) -> str:
+    value = raw.get(key, default)
+    if not isinstance(value, str):
+        raise ConfigError(f"Invalid config file at {config_path}: {key} must be a string.")
+
+    stripped_value = value.strip()
+    if not stripped_value:
+        raise ConfigError(
+            f"Invalid config file at {config_path}: {key} must be a non-empty string."
+        )
+
+    return stripped_value
 
 
 def _read_optional_string_options(
@@ -157,6 +179,18 @@ def load_config(config_path: Path | None = None) -> AppConfig:
     )
     fixed_left = _read_optional_non_negative_int(raw, "fixed_left", resolved_path)
     fixed_right = _read_optional_non_negative_int(raw, "fixed_right", resolved_path)
+    yes_message = _read_required_non_empty_string(
+        raw,
+        "yes_message",
+        resolved_path,
+        default="Yes!",
+    )
+    no_message = _read_required_non_empty_string(
+        raw,
+        "no_message",
+        resolved_path,
+        default="No...",
+    )
     greeting_messages = _read_optional_string_options(raw, "greeting_messages", resolved_path)
     success_messages = _read_optional_string_options(raw, "success_messages", resolved_path)
     failure_messages = _read_optional_string_options(raw, "failure_messages", resolved_path)
@@ -176,6 +210,8 @@ def load_config(config_path: Path | None = None) -> AppConfig:
         wrong_penalty=wrong_penalty,
         fixed_left=fixed_left,
         fixed_right=fixed_right,
+        yes_message=yes_message,
+        no_message=no_message,
         greeting_messages=greeting_messages,
         success_messages=success_messages,
         failure_messages=failure_messages,

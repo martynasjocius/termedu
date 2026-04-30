@@ -114,6 +114,27 @@ def test_run_lesson_prints_correct_answer_for_incorrect_answers_and_continues() 
     assert transcript.endswith("4 x 3 = 12 Yes!\n")
 
 
+def test_run_lesson_uses_custom_verdict_messages() -> None:
+    config = AppConfig(
+        fixed_left=4,
+        fixed_right=3,
+        coin_target=Decimal("0.1"),
+        yes_message="Ja!",
+        no_message="Nee...",
+    )
+    input_stream = StringIO("11\n12\n12\n12\n12\n")
+    output = StringIO()
+
+    run_lesson(config, input_stream=input_stream, output=output, rng=random.Random(0))
+
+    transcript = output.getvalue()
+
+    assert "4 x 3 = 11 Nee... 12\n" in transcript
+    assert transcript.count("4 x 3 = 12 Ja!\n") == 4
+    assert "Yes!" not in transcript
+    assert "No..." not in transcript
+
+
 def test_run_lesson_rewrites_the_previous_line_for_tty_output() -> None:
     config = AppConfig(fixed_left=4, fixed_right=3)
     input_stream = StringIO("12\n" * 20)

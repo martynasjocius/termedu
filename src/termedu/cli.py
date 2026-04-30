@@ -18,8 +18,6 @@ from termedu.logging_utils import (
 )
 from termedu.session import SessionState
 
-CORRECT_VERDICT = "Yes!"
-INCORRECT_VERDICT = "No..."
 INTERRUPTED_MESSAGE = "Lesson interrupted."
 
 
@@ -70,11 +68,11 @@ def _is_valid_answer_text(answer_text: str) -> bool:
     return True
 
 
-def _build_verdict(is_correct: bool, correct_answer: int) -> str:
+def _build_verdict(config: AppConfig, is_correct: bool, correct_answer: int) -> str:
     if is_correct:
-        return CORRECT_VERDICT
+        return config.yes_message
 
-    return f"{INCORRECT_VERDICT} {correct_answer}"
+    return f"{config.no_message} {correct_answer}"
 
 
 def _write_session_log(
@@ -154,7 +152,7 @@ def run_lesson(
             continue
 
         outcome = session.record_answer(is_correct_answer(question, answer_text))
-        verdict = _build_verdict(outcome.is_correct, question.answer)
+        verdict = _build_verdict(config, outcome.is_correct, question.answer)
 
         _write_answer_line(output, question.prompt, answer_text, verdict)
         transcript_lines.append(f"{question.prompt}{answer_text} {verdict}")
