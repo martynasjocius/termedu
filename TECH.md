@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document gives implementation agents concrete technical instructions for building `termedu`. It complements `VISION.md` and should be treated as the default engineering baseline for version 1.
+This document gives concrete technical instructions for building `termedu`. It complements `VISION.md` and should be treated as the default engineering baseline for version 1.
 
 When `VISION.md` and `TECH.md` both apply:
 

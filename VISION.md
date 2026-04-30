@@ -4,7 +4,7 @@
 
 `termedu` is a very simple terminal-based educational app for kids. The first version teaches basic math with short interactive sessions, immediate feedback, and minimal distractions.
 
-This document is intended for AI agents that will design and implement the app. Favor clarity, simplicity, predictable behavior, and a pleasant terminal experience over extensibility or feature breadth.
+This document guides the design and implementation of the app. Favor clarity, simplicity, predictable behavior, and a pleasant terminal experience over extensibility or feature breadth.
 
 ## Product Summary
 
@@ -296,7 +296,7 @@ Do not add these unless explicitly requested later:
 - advanced analytics
 - multiple operations in one session
 
-## Implementation Guidance For Agents
+## Implementation Guidance
 
 Optimize for a tiny reliable CLI program.
 
