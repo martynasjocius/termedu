@@ -164,6 +164,25 @@ def test_run_lesson_supports_addition_operation() -> None:
     assert "4 x 3" not in transcript
 
 
+def test_run_lesson_supports_mixed_operations() -> None:
+    config = AppConfig(
+        operation="mixed",
+        fixed_left=4,
+        fixed_right=3,
+        coin_target=Decimal("0.15"),
+    )
+    input_stream = StringIO("16\n12\n12\n")
+    output = StringIO()
+
+    run_lesson(config, input_stream=input_stream, output=output, rng=random.Random(0))
+
+    transcript = output.getvalue()
+
+    assert "4 + 4 x 3 = 16 Yes!\n" in transcript
+    assert transcript.count("4 + 4 + 4 = 12 Yes!\n") == 2
+    assert transcript.count("Yes!\n") == 3
+
+
 def test_run_lesson_uses_custom_verdict_messages() -> None:
     config = AppConfig(
         fixed_left=4,

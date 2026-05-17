@@ -50,6 +50,7 @@ name = "Mia"
 operation = "multiplication"
 left_max = 12
 right_max = 12
+max_numbers = 3
 coin_target = 1.0
 correct_reward = 0.05
 wrong_penalty = 0.1
@@ -69,9 +70,10 @@ fixed_left = 4
 Public config keys:
 
 - `name`: optional learner name
-- `operation`: optional math operation, either `multiplication` or `addition`; defaults to `multiplication`
+- `operation`: optional math operation, either `multiplication`, `addition`, or `mixed`; defaults to `multiplication`
 - `left_max`: maximum left operand when using a range
 - `right_max`: maximum right operand when using a range
+- `max_numbers`: maximum numbers in a mixed-operation question, defaults to `3`
 - `coin_target`: earned-coin goal required before the session ends
 - `correct_reward`: coins added for each correct answer
 - `wrong_penalty`: coins subtracted for each incorrect answer

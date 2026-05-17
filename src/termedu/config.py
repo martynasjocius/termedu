@@ -16,6 +16,7 @@ class AppConfig:
     operation: str = "multiplication"
     left_max: int = 12
     right_max: int = 12
+    max_numbers: int = 3
     coin_target: Decimal = Decimal("1.0")
     correct_reward: Decimal = Decimal("0.05")
     wrong_penalty: Decimal = Decimal("0.1")
@@ -128,6 +129,22 @@ def _read_required_positive_int(
     return value
 
 
+def _read_required_min_int(
+    raw: dict[str, object],
+    key: str,
+    config_path: Path,
+    *,
+    default: int,
+    minimum: int,
+) -> int:
+    value = raw.get(key, default)
+    if type(value) is not int or value < minimum:
+        raise ConfigError(
+            f"Invalid config file at {config_path}: {key} must be an integer of at least {minimum}."
+        )
+    return value
+
+
 def _read_required_positive_decimal(
     raw: dict[str, object],
     key: str,
@@ -178,6 +195,9 @@ def load_config(config_path: Path | None = None) -> AppConfig:
     operation = _read_optional_string(raw, "operation", resolved_path) or "multiplication"
     left_max = _read_required_non_negative_int(raw, "left_max", resolved_path, default=12)
     right_max = _read_required_non_negative_int(raw, "right_max", resolved_path, default=12)
+    max_numbers = _read_required_min_int(
+        raw, "max_numbers", resolved_path, default=3, minimum=2
+    )
     coin_target = _read_required_positive_decimal(
         raw,
         "coin_target",
@@ -217,9 +237,9 @@ def load_config(config_path: Path | None = None) -> AppConfig:
         raw, "final_success_message", resolved_path
     )
 
-    if operation not in ("multiplication", "addition"):
+    if operation not in ("multiplication", "addition", "mixed"):
         raise ConfigError(
-            f"Invalid config file at {resolved_path}: operation must be 'multiplication' or 'addition'."
+            f"Invalid config file at {resolved_path}: operation must be 'multiplication', 'addition', or 'mixed'."
         )
 
     return AppConfig(
@@ -227,6 +247,7 @@ def load_config(config_path: Path | None = None) -> AppConfig:
         operation=operation,
         left_max=left_max,
         right_max=right_max,
+        max_numbers=max_numbers,
         coin_target=coin_target,
         correct_reward=correct_reward,
         wrong_penalty=wrong_penalty,
