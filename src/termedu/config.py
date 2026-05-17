@@ -217,9 +217,9 @@ def load_config(config_path: Path | None = None) -> AppConfig:
         raw, "final_success_message", resolved_path
     )
 
-    if operation != "multiplication":
+    if operation not in ("multiplication", "addition"):
         raise ConfigError(
-            f"Invalid config file at {resolved_path}: operation must be 'multiplication'."
+            f"Invalid config file at {resolved_path}: operation must be 'multiplication' or 'addition'."
         )
 
     return AppConfig(

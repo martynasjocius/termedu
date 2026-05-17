@@ -70,6 +70,15 @@ def test_cli_name_overrides_config(tmp_path: Path) -> None:
     assert config == AppConfig(name="CLI Name", fixed_right=7)
 
 
+def test_load_config_accepts_addition_operation(tmp_path: Path) -> None:
+    config_path = tmp_path / ".termedu"
+    config_path.write_text('operation = "addition"\n', encoding="utf-8")
+
+    config = load_config(config_path)
+
+    assert config.operation == "addition"
+
+
 def test_load_config_rejects_negative_fixed_operand(tmp_path: Path) -> None:
     config_path = tmp_path / ".termedu"
     config_path.write_text("fixed_left = -1\n", encoding="utf-8")

@@ -69,7 +69,7 @@ fixed_left = 4
 Public config keys:
 
 - `name`: optional learner name
-- `operation`: optional math operation, defaults to `multiplication`
+- `operation`: optional math operation, either `multiplication` or `addition`; defaults to `multiplication`
 - `left_max`: maximum left operand when using a range
 - `right_max`: maximum right operand when using a range
 - `coin_target`: earned-coin goal required before the session ends

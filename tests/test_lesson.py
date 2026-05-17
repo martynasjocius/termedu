@@ -27,8 +27,23 @@ def test_generate_question_uses_fixed_right() -> None:
     assert question.right == 7
 
 
+def test_generate_question_uses_configured_addition_operation() -> None:
+    question = generate_question(
+        AppConfig(operation="addition", left_max=3, right_max=4),
+        random.Random(0),
+    )
+
+    assert question.operation == "addition"
+    assert question.prompt == "3 + 3 = "
+    assert question.answer == 6
+
+
 def test_correct_answer_evaluation() -> None:
     assert is_correct_answer(Question(left=4, right=3), "12") is True
+
+
+def test_correct_addition_answer_evaluation() -> None:
+    assert is_correct_answer(Question(left=4, right=3, operation="addition"), "7") is True
 
 
 def test_incorrect_answer_evaluation() -> None:

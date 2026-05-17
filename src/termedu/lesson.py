@@ -10,13 +10,20 @@ from termedu.config import AppConfig
 class Question:
     left: int
     right: int
+    operation: str = "multiplication"
 
     @property
     def prompt(self) -> str:
+        if self.operation == "addition":
+            return f"{self.left} + {self.right} = "
+
         return f"{self.left} x {self.right} = "
 
     @property
     def answer(self) -> int:
+        if self.operation == "addition":
+            return self.left + self.right
+
         return self.left * self.right
 
 
@@ -25,7 +32,7 @@ def generate_question(config: AppConfig, rng: random.Random) -> Question:
     right = (
         config.fixed_right if config.fixed_right is not None else rng.randint(0, config.right_max)
     )
-    return Question(left=left, right=right)
+    return Question(left=left, right=right, operation=config.operation)
 
 
 def is_correct_answer(question: Question, answer_text: str) -> bool:

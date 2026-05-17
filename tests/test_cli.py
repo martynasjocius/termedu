@@ -145,6 +145,25 @@ def test_run_lesson_prints_correct_answer_for_incorrect_answers_and_continues() 
     assert transcript.endswith("4 x 3 = 12 Yes!\n")
 
 
+def test_run_lesson_supports_addition_operation() -> None:
+    config = AppConfig(
+        operation="addition",
+        fixed_left=4,
+        fixed_right=3,
+        coin_target=Decimal("0.1"),
+    )
+    input_stream = StringIO("12\n" + ("7\n" * 4))
+    output = StringIO()
+
+    run_lesson(config, input_stream=input_stream, output=output, rng=random.Random(0))
+
+    transcript = output.getvalue()
+
+    assert "4 + 3 = 12 No... 7\n" in transcript
+    assert transcript.count("4 + 3 = 7 Yes!\n") == 4
+    assert "4 x 3" not in transcript
+
+
 def test_run_lesson_uses_custom_verdict_messages() -> None:
     config = AppConfig(
         fixed_left=4,
