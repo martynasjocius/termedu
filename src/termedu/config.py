@@ -26,6 +26,7 @@ class AppConfig:
     greeting_messages: tuple[str, ...] = ()
     success_messages: tuple[str, ...] = ()
     failure_messages: tuple[str, ...] = ()
+    final_success_message: str | None = None
 
 
 def default_config_path() -> Path:
@@ -49,6 +50,24 @@ def _read_required_non_empty_string(
     default: str,
 ) -> str:
     value = raw.get(key, default)
+    if not isinstance(value, str):
+        raise ConfigError(f"Invalid config file at {config_path}: {key} must be a string.")
+
+    stripped_value = value.strip()
+    if not stripped_value:
+        raise ConfigError(
+            f"Invalid config file at {config_path}: {key} must be a non-empty string."
+        )
+
+    return stripped_value
+
+
+def _read_optional_non_empty_string(
+    raw: dict[str, object], key: str, config_path: Path
+) -> str | None:
+    value = raw.get(key)
+    if value is None:
+        return None
     if not isinstance(value, str):
         raise ConfigError(f"Invalid config file at {config_path}: {key} must be a string.")
 
@@ -194,6 +213,9 @@ def load_config(config_path: Path | None = None) -> AppConfig:
     greeting_messages = _read_optional_string_options(raw, "greeting_messages", resolved_path)
     success_messages = _read_optional_string_options(raw, "success_messages", resolved_path)
     failure_messages = _read_optional_string_options(raw, "failure_messages", resolved_path)
+    final_success_message = _read_optional_non_empty_string(
+        raw, "final_success_message", resolved_path
+    )
 
     if operation != "multiplication":
         raise ConfigError(
@@ -215,4 +237,5 @@ def load_config(config_path: Path | None = None) -> AppConfig:
         greeting_messages=greeting_messages,
         success_messages=success_messages,
         failure_messages=failure_messages,
+        final_success_message=final_success_message,
     )

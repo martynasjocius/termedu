@@ -56,6 +56,10 @@ wrong_penalty = 0.1
 greeting_messages = ["Ready?", "Let's practice!"]
 success_messages = ["Nice work", "You got it"]
 failure_messages = ["Try again", "Keep thinking"]
+final_success_message = """
+Great work today!
+You reached your coin target.
+"""
 
 # Optional fixed operand mode
 fixed_left = 4
@@ -74,5 +78,6 @@ Public config keys:
 - `greeting_messages`: optional greetings printed before practice starts
 - `success_messages`: optional feedback choices for correct answers
 - `failure_messages`: optional feedback choices for incorrect answers
+- `final_success_message`: optional message printed after reaching `coin_target`; TOML multiline strings are supported
 - `fixed_left`: optional fixed left operand
 - `fixed_right`: optional fixed right operand

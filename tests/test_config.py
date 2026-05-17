@@ -29,7 +29,7 @@ def test_load_config_uses_home_directory_by_default(tmp_path: Path, monkeypatch:
 def test_load_config_reads_valid_toml(tmp_path: Path) -> None:
     config_path = tmp_path / ".termedu"
     config_path.write_text(
-        'name = "Ada"\noperation = "multiplication"\nleft_max = 9\nright_max = 8\ncoin_target = 1.5\ncorrect_reward = 0.25\nwrong_penalty = 0.2\nfixed_left = 4\nyes_message = "Ja!"\nno_message = "Nee..."\ngreeting_messages = ["Ready?", "Begin"]\nsuccess_messages = ["Nice", "Good"]\nfailure_messages = ["Try again"]\n',
+        'name = "Ada"\noperation = "multiplication"\nleft_max = 9\nright_max = 8\ncoin_target = 1.5\ncorrect_reward = 0.25\nwrong_penalty = 0.2\nfixed_left = 4\nyes_message = "Ja!"\nno_message = "Nee..."\ngreeting_messages = ["Ready?", "Begin"]\nsuccess_messages = ["Nice", "Good"]\nfailure_messages = ["Try again"]\nfinal_success_message = """\nDone for today!\nYou earned your coin target.\n"""\n',
         encoding="utf-8",
     )
 
@@ -49,6 +49,7 @@ def test_load_config_reads_valid_toml(tmp_path: Path) -> None:
         greeting_messages=("Ready?", "Begin"),
         success_messages=("Nice", "Good"),
         failure_messages=("Try again",),
+        final_success_message="Done for today!\nYou earned your coin target.",
     )
 
 
@@ -123,4 +124,12 @@ def test_load_config_rejects_empty_yes_or_no_messages(tmp_path: Path, key: str) 
     config_path.write_text(f'{key} = "  "\n', encoding="utf-8")
 
     with pytest.raises(ConfigError, match=f"{key} must be a non-empty string"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_empty_final_success_message(tmp_path: Path) -> None:
+    config_path = tmp_path / ".termedu"
+    config_path.write_text('final_success_message = "  "\n', encoding="utf-8")
+
+    with pytest.raises(ConfigError, match="final_success_message must be a non-empty string"):
         load_config(config_path)

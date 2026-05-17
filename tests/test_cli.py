@@ -80,6 +80,37 @@ def test_run_lesson_stops_after_configured_coin_target() -> None:
     assert transcript.count("4 x 3 = 12 Yes!\n") == 3
 
 
+def test_run_lesson_prints_final_success_message_after_coin_target(tmp_path: Path) -> None:
+    config = AppConfig(
+        name="Ada",
+        fixed_left=4,
+        fixed_right=3,
+        coin_target=Decimal("0.1"),
+        final_success_message="Target reached!\nTake a break.",
+    )
+    input_stream = StringIO("12\n" * 20)
+    output = StringIO()
+    started_at = datetime(2026, 4, 26, 13, 14, 15)
+
+    run_lesson(
+        config,
+        input_stream=input_stream,
+        output=output,
+        rng=random.Random(0),
+        log_home_dir=tmp_path,
+        started_at=started_at,
+    )
+
+    transcript = output.getvalue()
+    log_path = tmp_path / "termedu-Ada-20260426T131415.txt"
+    log_lines = log_path.read_text(encoding="utf-8").splitlines()
+
+    assert transcript.endswith("4 x 3 = 12 Yes!\n\nTarget reached!\nTake a break.\n")
+    assert transcript.count("4 x 3 = 12 Yes!\n") == 2
+    assert "Target reached!" in log_lines
+    assert "Take a break." in log_lines
+
+
 def test_run_lesson_prints_custom_greeting_and_feedback_messages() -> None:
     config = AppConfig(
         fixed_left=4,

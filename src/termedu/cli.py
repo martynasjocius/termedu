@@ -55,6 +55,12 @@ def _write_answer_line(output: object, prompt: str, answer_text: str, verdict: s
     output.write(f"{answer_text} {verdict}\n")
 
 
+def _write_message_block(output: object, message: str) -> None:
+    output.write(message)
+    if not message.endswith("\n"):
+        output.write("\n")
+
+
 def _normalize_answer_text(raw_answer: str) -> str:
     return raw_answer.rstrip("\r\n")
 
@@ -164,6 +170,11 @@ def run_lesson(
         output.flush()
 
         if outcome.completed:
+            if config.final_success_message:
+                output.write("\n")
+                _write_message_block(output, config.final_success_message)
+                transcript_lines.append("")
+                transcript_lines.extend(config.final_success_message.splitlines())
             break
 
         question = generate_question(config, lesson_rng)
