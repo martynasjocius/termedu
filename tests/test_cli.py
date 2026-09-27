@@ -11,7 +11,7 @@ import subprocess
 import sys
 from datetime import datetime
 
-from termedu.cli import INTERRUPTED_MESSAGE, LessonInterrupted, main, run_lesson
+from termedu.cli import INTERRUPTED_MESSAGE, LessonInterrupted, _build_verdict, main, run_lesson
 from termedu.config import AppConfig
 from termedu.logging_utils import LogWriteError
 from termedu.session import HAPPY_KAOMOJI, SAD_KAOMOJI
@@ -20,6 +20,48 @@ from termedu.session import HAPPY_KAOMOJI, SAD_KAOMOJI
 class TtyStringIO(StringIO):
     def isatty(self) -> bool:
         return True
+
+
+def test_verdict_substitutes_correct_answer_in_both_messages() -> None:
+    config = AppConfig(yes_message=":) %a is right", no_message=":( Answer %a; use %a")
+    assert _build_verdict(config, True, 28) == ":) 28 is right"
+    assert _build_verdict(config, False, 28) == ":( Answer 28; use 28"
+    assert _build_verdict(AppConfig(no_message="Try again"), False, 28) == "Try again"
+
+
+def test_missing_answer_format_with_custom_symbol(tmp_path: Path) -> None:
+    config = AppConfig(
+        question_mode="missing_operand", missing_symbol="?", fixed_left=2, fixed_right=1,
+        yes_message=":) Teisingai!", no_message=":( Atsakymas %a, bandyk dar kartą...",
+        coin_target=Decimal("0.05"), correct_reward=Decimal("0.2"),
+    )
+    output = TtyStringIO()
+    run_lesson(
+        config, input_stream=StringIO("3\n1\n"), output=output,
+        rng=random.Random(0), log_home_dir=tmp_path,
+    )
+    assert "2 x ? = 2  -->  ? = 3  -->  :( Atsakymas 1, bandyk dar kartą...\n\n" in output.getvalue()
+    assert "2 x ? = 2  -->  ? = 1  -->  :) Teisingai!\n\n" in output.getvalue()
+    log = next(tmp_path.glob("termedu-*.txt")).read_text()
+    assert "? = 1  -->  :) Teisingai!\n\n" in log
+
+
+def test_missing_operand_session_checks_blank_and_logs_answer(tmp_path: Path) -> None:
+    config = AppConfig(
+        question_mode="missing_operand", fixed_left=2, fixed_right=6,
+        coin_target=Decimal("0.05"), correct_reward=Decimal("0.2"),
+    )
+    output = StringIO()
+    run_lesson(
+        config, input_stream=StringIO("12\n6\n"), output=output,
+        rng=random.Random(0), log_home_dir=tmp_path,
+    )
+    transcript = output.getvalue()
+    assert "2 x _ = 12  -->  _ = 12  -->  No... 6" in transcript
+    assert "6  -->  Yes!" in transcript
+    logs = list(tmp_path.glob("termedu-*.txt"))
+    assert len(logs) == 1
+    assert "2 x _ = 12  -->  _ = 6  -->  Yes!" in logs[0].read_text()
 
 
 class InterruptingInputStream:
@@ -59,8 +101,8 @@ def test_run_lesson_uses_fixed_operands_and_finishes_after_twenty_four_correct_a
 
     transcript = output.getvalue()
 
-    assert transcript.count("4 x 3 = 12 Yes!\n") == 20
-    assert "4 x 3 = 4 x 3 = 12 Yes!\n" not in transcript
+    assert transcript.count("4 x 3 = 12  -->  Yes!\n\n") == 20
+    assert "4 x 3 = 4 x 3 = 12  -->  Yes!\n\n" not in transcript
     assert any(kaomoji in transcript for kaomoji in HAPPY_KAOMOJI)
 
 
@@ -77,7 +119,7 @@ def test_run_lesson_stops_after_configured_coin_target() -> None:
 
     transcript = output.getvalue()
 
-    assert transcript.count("4 x 3 = 12 Yes!\n") == 3
+    assert transcript.count("4 x 3 = 12  -->  Yes!\n\n") == 3
 
 
 def test_run_lesson_prints_final_success_message_after_coin_target(tmp_path: Path) -> None:
@@ -105,8 +147,8 @@ def test_run_lesson_prints_final_success_message_after_coin_target(tmp_path: Pat
     log_path = tmp_path / "termedu-Ada-20260426T131415.txt"
     log_lines = log_path.read_text(encoding="utf-8").splitlines()
 
-    assert transcript.endswith("4 x 3 = 12 Yes!\n\nTarget reached!\nTake a break.\n")
-    assert transcript.count("4 x 3 = 12 Yes!\n") == 2
+    assert transcript.endswith("4 x 3 = 12  -->  Yes!\n\nTarget reached!\nTake a break.\n")
+    assert transcript.count("4 x 3 = 12  -->  Yes!\n\n") == 2
     assert "Target reached!" in log_lines
     assert "Take a break." in log_lines
 
@@ -139,10 +181,10 @@ def test_run_lesson_prints_correct_answer_for_incorrect_answers_and_continues() 
 
     transcript = output.getvalue()
 
-    assert "4 x 3 = 11 No... 12\n" in transcript
-    assert "4 x 3 = 4 x 3 = 11 No... 12\n" not in transcript
+    assert "4 x 3 = 11  -->  No... 12\n\n" in transcript
+    assert "4 x 3 = 4 x 3 = 11  -->  No... 12\n\n" not in transcript
     assert sum(transcript.count(kaomoji) for kaomoji in SAD_KAOMOJI) == 1
-    assert transcript.endswith("4 x 3 = 12 Yes!\n")
+    assert transcript.endswith("4 x 3 = 12  -->  Yes!\n\n")
 
 
 def test_run_lesson_supports_addition_operation() -> None:
@@ -159,8 +201,8 @@ def test_run_lesson_supports_addition_operation() -> None:
 
     transcript = output.getvalue()
 
-    assert "4 + 3 = 12 No... 7\n" in transcript
-    assert transcript.count("4 + 3 = 7 Yes!\n") == 4
+    assert "4 + 3 = 12  -->  No... 7\n\n" in transcript
+    assert transcript.count("4 + 3 = 7  -->  Yes!\n\n") == 4
     assert "4 x 3" not in transcript
 
 
@@ -178,9 +220,9 @@ def test_run_lesson_supports_mixed_operations() -> None:
 
     transcript = output.getvalue()
 
-    assert "4 + 4 x 3 = 16 Yes!\n" in transcript
-    assert transcript.count("4 + 4 + 4 = 12 Yes!\n") == 2
-    assert transcript.count("Yes!\n") == 3
+    assert "4 + 4 x 3 = 16  -->  Yes!\n\n" in transcript
+    assert transcript.count("4 + 4 + 4 = 12  -->  Yes!\n\n") == 2
+    assert transcript.count("Yes!\n\n") == 3
 
 
 def test_run_lesson_uses_custom_verdict_messages() -> None:
@@ -189,7 +231,7 @@ def test_run_lesson_uses_custom_verdict_messages() -> None:
         fixed_right=3,
         coin_target=Decimal("0.1"),
         yes_message="Ja!",
-        no_message="Nee...",
+        no_message="Nee... %a",
     )
     input_stream = StringIO("11\n12\n12\n12\n12\n")
     output = StringIO()
@@ -198,8 +240,8 @@ def test_run_lesson_uses_custom_verdict_messages() -> None:
 
     transcript = output.getvalue()
 
-    assert "4 x 3 = 11 Nee... 12\n" in transcript
-    assert transcript.count("4 x 3 = 12 Ja!\n") == 4
+    assert "4 x 3 = 11  -->  Nee... 12\n\n" in transcript
+    assert transcript.count("4 x 3 = 12  -->  Ja!\n\n") == 4
     assert "Yes!" not in transcript
     assert "No..." not in transcript
 
@@ -213,7 +255,7 @@ def test_run_lesson_rewrites_the_previous_line_for_tty_output() -> None:
 
     transcript = output.getvalue()
 
-    assert "\033[F\033[2K4 x 3 = 12 Yes!\n" in transcript
+    assert "\033[F\033[2K4 x 3 = 12  -->  Yes!\n\n" in transcript
 
 
 def test_run_lesson_rewrites_the_previous_line_for_tty_incorrect_answers() -> None:
@@ -225,7 +267,7 @@ def test_run_lesson_rewrites_the_previous_line_for_tty_incorrect_answers() -> No
 
     transcript = output.getvalue()
 
-    assert "\033[F\033[2K4 x 3 = 11 No... 12\n" in transcript
+    assert "\033[F\033[2K4 x 3 = 11  -->  No... 12\n\n" in transcript
 
 
 def test_run_lesson_normalizes_crlf_answers_before_rendering_verdict() -> None:
@@ -237,8 +279,8 @@ def test_run_lesson_normalizes_crlf_answers_before_rendering_verdict() -> None:
 
     transcript = output.getvalue()
 
-    assert "4 x 3 = 12\r Yes!\n" not in transcript
-    assert transcript.count("4 x 3 = 12 Yes!\n") == 20
+    assert "4 x 3 = 12\r  -->  Yes!\n\n" not in transcript
+    assert transcript.count("4 x 3 = 12  -->  Yes!\n\n") == 20
 
 
 def test_run_lesson_repeats_blank_and_invalid_answers_without_scoring(tmp_path: Path) -> None:
@@ -266,9 +308,9 @@ def test_run_lesson_repeats_blank_and_invalid_answers_without_scoring(tmp_path: 
     log_lines = log_path.read_text(encoding="utf-8").splitlines()
 
     assert transcript.count("4 x 3 = ") == 4
-    assert transcript.count("12 Yes!\n") == 2
+    assert transcript.count("12  -->  Yes!\n\n") == 2
     assert "No..." not in transcript
-    assert log_lines.count("4 x 3 = 12 Yes!") == 2
+    assert log_lines.count("4 x 3 = 12  -->  Yes!") == 2
     assert not any("abc" in line for line in log_lines)
     assert not any("No..." in line for line in log_lines)
     assert "earned_coins: 0.1" in log_lines
@@ -299,8 +341,8 @@ def test_run_lesson_retries_the_same_ranged_question_after_invalid_answers(tmp_p
     log_path = tmp_path / "termedu-Ada-20260426T131415.txt"
     log_lines = log_path.read_text(encoding="utf-8").splitlines()
 
-    assert transcript == "6 x 6 = 6 x 6 = 6 x 6 = 36 Yes!\n"
-    assert log_lines.count("6 x 6 = 36 Yes!") == 1
+    assert transcript == "6 x 6 = 6 x 6 = 6 x 6 = 36  -->  Yes!\n\n"
+    assert log_lines.count("6 x 6 = 36  -->  Yes!") == 1
     assert not any("abc" in line for line in log_lines)
     assert "earned_coins: 0.05" in log_lines
     assert "total_correct: 1" in log_lines
@@ -324,7 +366,7 @@ def test_run_lesson_writes_correct_answer_for_incorrect_answers_to_session_log(t
     log_path = tmp_path / "termedu-Ada-20260426T131415.txt"
     log_lines = log_path.read_text(encoding="utf-8").splitlines()
 
-    assert "4 x 3 = 11 No... 12" in log_lines
+    assert "4 x 3 = 11  -->  No... 12" in log_lines
     assert "earned_coins: 1.0" in log_lines
     assert "total_correct: 22" in log_lines
 
@@ -381,7 +423,7 @@ def test_run_lesson_interrupts_cleanly_and_persists_partial_log(tmp_path: Path) 
 
     log_lines = log_path.read_text(encoding="utf-8").splitlines()
 
-    assert "4 x 3 = 12 Yes!" in log_lines
+    assert "4 x 3 = 12  -->  Yes!" in log_lines
     assert INTERRUPTED_MESSAGE in log_lines
     assert "earned_coins: 0.05" in log_lines
     assert "total_correct: 1" in log_lines

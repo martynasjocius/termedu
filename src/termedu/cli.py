@@ -49,10 +49,10 @@ def _write_answer_line(output: object, prompt: str, answer_text: str, verdict: s
     if _supports_tty(output):
         output.write("\033[F")
         output.write("\033[2K")
-        output.write(f"{prompt}{answer_text} {verdict}\n")
+        output.write(f"{prompt}{answer_text}  -->  {verdict}\n\n")
         return
 
-    output.write(f"{answer_text} {verdict}\n")
+    output.write(f"{answer_text}  -->  {verdict}\n\n")
 
 
 def _write_message_block(output: object, message: str) -> None:
@@ -76,9 +76,9 @@ def _is_valid_answer_text(answer_text: str) -> bool:
 
 def _build_verdict(config: AppConfig, is_correct: bool, correct_answer: int) -> str:
     if is_correct:
-        return config.yes_message
+        return config.yes_message.replace("%a", str(correct_answer))
 
-    return f"{config.no_message} {correct_answer}"
+    return config.no_message.replace("%a", str(correct_answer))
 
 
 def _write_session_log(
@@ -161,19 +161,17 @@ def run_lesson(
         verdict = _build_verdict(config, outcome.is_correct, question.answer)
 
         _write_answer_line(output, question.prompt, answer_text, verdict)
-        transcript_lines.append(f"{question.prompt}{answer_text} {verdict}")
+        transcript_lines.extend([f"{question.prompt}{answer_text}  -->  {verdict}", ""])
 
         if outcome.feedback:
-            output.write(f"\n{outcome.feedback}\n\n")
-            transcript_lines.extend(["", outcome.feedback, ""])
+            output.write(f"{outcome.feedback}\n\n")
+            transcript_lines.extend([outcome.feedback, ""])
 
         output.flush()
 
         if outcome.completed:
             if config.final_success_message:
-                output.write("\n")
                 _write_message_block(output, config.final_success_message)
-                transcript_lines.append("")
                 transcript_lines.extend(config.final_success_message.splitlines())
             break
 

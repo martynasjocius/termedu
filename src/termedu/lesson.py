@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import random
 
 from termedu.config import AppConfig
@@ -22,9 +22,30 @@ class Question:
     operation: str = "multiplication"
     operands: tuple[int, ...] | None = None
     operators: tuple[str, ...] | None = None
+    missing_index: int | None = None
+    missing_symbol: str = "_"
+
+    @property
+    def numbers(self) -> tuple[int, ...]:
+        return self.operands if self.operands is not None else (self.left, self.right)
 
     @property
     def prompt(self) -> str:
+        if self.missing_index is not None:
+            operators = self.operators if self.operation == "mixed" else (
+                "+" if self.operation == "addition" else "*",
+            )
+            assert operators is not None
+            parts = [self.missing_symbol if self.missing_index == 0 else str(self.numbers[0])]
+            for index, (operator, operand) in enumerate(
+                zip(operators, self.numbers[1:], strict=True), start=1
+            ):
+                parts.extend([
+                    _render_operator(operator),
+                    self.missing_symbol if index == self.missing_index else str(operand),
+                ])
+            return f"{' '.join(parts)} = {self.result}  -->  {self.missing_symbol} = "
+
         if self.operation == "mixed":
             assert self.operands is not None
             assert self.operators is not None
@@ -40,6 +61,12 @@ class Question:
 
     @property
     def answer(self) -> int:
+        if self.missing_index is not None:
+            return self.numbers[self.missing_index]
+        return self.result
+
+    @property
+    def result(self) -> int:
         if self.operation == "mixed":
             assert self.operands is not None
             assert self.operators is not None
@@ -74,13 +101,13 @@ def _generate_mixed_question(config: AppConfig, rng: random.Random) -> Question:
             operand = (
                 config.fixed_right
                 if config.fixed_right is not None
-                else rng.randint(0, config.right_max)
+                else rng.randint(config.right_min, config.right_max)
             )
         else:
             operand = (
                 config.fixed_left
                 if config.fixed_left is not None
-                else rng.randint(0, config.left_max)
+                else rng.randint(config.left_min, config.left_max)
             )
         operands.append(operand)
 
@@ -93,15 +120,41 @@ def _generate_mixed_question(config: AppConfig, rng: random.Random) -> Question:
     )
 
 
-def generate_question(config: AppConfig, rng: random.Random) -> Question:
+def _generate_result_question(config: AppConfig, rng: random.Random) -> Question:
     if config.operation == "mixed":
         return _generate_mixed_question(config, rng)
 
-    left = config.fixed_left if config.fixed_left is not None else rng.randint(0, config.left_max)
+    left = config.fixed_left if config.fixed_left is not None else rng.randint(config.left_min, config.left_max)
     right = (
-        config.fixed_right if config.fixed_right is not None else rng.randint(0, config.right_max)
+        config.fixed_right if config.fixed_right is not None else rng.randint(config.right_min, config.right_max)
     )
     return Question(left=left, right=right, operation=config.operation)
+
+
+def generate_question(config: AppConfig, rng: random.Random) -> Question:
+    question = _generate_result_question(config, rng)
+    if config.question_mode == "result":
+        return question
+    if config.question_mode == "mixed" and rng.choice((True, False)):
+        return question
+
+    # A blank must affect the result: a factor multiplied by zero has no unique answer.
+    candidates = []
+    for index, operand in enumerate(question.numbers):
+        numbers = list(question.numbers)
+        numbers[index] = operand + 1
+        changed = replace(
+            question, left=numbers[0], right=numbers[1],
+            operands=tuple(numbers) if question.operands is not None else None,
+        )
+        if changed.result != question.result:
+            candidates.append(index)
+
+    if not candidates:
+        return question
+    return replace(
+        question, missing_index=rng.choice(candidates), missing_symbol=config.missing_symbol,
+    )
 
 
 def is_correct_answer(question: Question, answer_text: str) -> bool:

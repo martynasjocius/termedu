@@ -44,7 +44,7 @@ The app should be fast to start, have no unnecessary menus, and require no mouse
 The app must read settings from:
 
 ```text
-~/.termedu
+~/.config/termedu/config.toml
 ```
 
 Use a standard config file format. Prefer `TOML` because it is simple, readable, and widely supported. If implementation constraints make another standard format materially better, it must still be a well-known format such as `INI`, `TOML`, `JSON`, or `YAML`. Default recommendation: `TOML`.
@@ -333,7 +333,7 @@ An implementation should be considered correct when all of the following are tru
 
 1. Running `termedu` without config starts a playable multiplication session using `0..12` by `0..12`.
 2. Running `termedu Alice` uses `Alice` as the learner name.
-3. Config values in `~/.termedu` override defaults.
+3. Config values in `~/.config/termedu/config.toml` override defaults.
 4. CLI name overrides config name.
 5. The app asks one random question at a time and checks the answer on Enter.
 6. Correct answers append `Yes!` on the same line.

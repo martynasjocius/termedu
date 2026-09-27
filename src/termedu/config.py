@@ -2,8 +2,61 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
+import os
 from pathlib import Path
 import tomllib
+
+
+INITIAL_CONFIG = '''# termedu settings (TOML). Edit this file before your next session.
+# Lines starting with # are comments; remove # to enable an optional setting.
+
+# Operation: "multiplication", "addition", or "mixed".
+operation = "multiplication"
+# Question style: "result", "missing_operand", or "mixed" (both styles).
+question_mode = "result"
+# Symbol marking the missing operand, for example "?" or "□".
+missing_symbol = "_"
+# Alternative missing-operand symbols (uncomment one, replacing the value above):
+# missing_symbol = "?"
+# missing_symbol = "□"
+# missing_symbol = "…"
+# missing_symbol = "[ ]"
+
+# Random operand ranges, inclusive. Each minimum must be <= its maximum.
+left_min = 0
+left_max = 12
+right_min = 0
+right_max = 12
+# Maximum numbers per mixed-operation expression (at least 2).
+max_numbers = 3
+
+# Finish when earned coins reach the target. All amounts must be positive.
+coin_target = 1.0
+correct_reward = 0.05
+wrong_penalty = 0.1
+
+# Feedback after each answer. %a is replaced with the correct answer.
+yes_message = "Yes!"
+no_message = "No... %a"
+
+# Optional learner name (a name on the command line overrides this).
+# name = "Mia"
+
+# Optional fixed operands, replacing the corresponding random range.
+# fixed_left = 4
+# fixed_right = 7
+
+# Optional messages. Each list must contain at least one non-empty string.
+# greeting_messages = ["Ready?", "Let's practice!"]
+# success_messages = ["Nice work", "You got it"]
+# failure_messages = ["Try again", "Keep thinking"]
+
+# Optional message after reaching the coin target; multiline strings work too.
+# final_success_message = """
+# Great work today!
+# You reached your coin target.
+# """
+'''
 
 
 class ConfigError(Exception):
@@ -14,7 +67,11 @@ class ConfigError(Exception):
 class AppConfig:
     name: str | None = None
     operation: str = "multiplication"
+    question_mode: str = "result"
+    missing_symbol: str = "_"
+    left_min: int = 0
     left_max: int = 12
+    right_min: int = 0
     right_max: int = 12
     max_numbers: int = 3
     coin_target: Decimal = Decimal("1.0")
@@ -23,7 +80,7 @@ class AppConfig:
     fixed_left: int | None = None
     fixed_right: int | None = None
     yes_message: str = "Yes!"
-    no_message: str = "No..."
+    no_message: str = "No... %a"
     greeting_messages: tuple[str, ...] = ()
     success_messages: tuple[str, ...] = ()
     failure_messages: tuple[str, ...] = ()
@@ -31,7 +88,11 @@ class AppConfig:
 
 
 def default_config_path() -> Path:
-    return Path.home() / ".termedu"
+    configured_home = os.environ.get("XDG_CONFIG_HOME", "")
+    config_home = Path(configured_home)
+    if not configured_home or not config_home.is_absolute():
+        config_home = Path.home() / ".config"
+    return config_home / "termedu" / "config.toml"
 
 
 def _read_optional_string(raw: dict[str, object], key: str, config_path: Path) -> str | None:
@@ -107,7 +168,7 @@ def _read_required_non_negative_int(
     default: int,
 ) -> int:
     value = raw.get(key, default)
-    if not isinstance(value, int) or value < 0:
+    if type(value) is not int or value < 0:
         raise ConfigError(
             f"Invalid config file at {config_path}: {key} must be a non-negative integer."
         )
@@ -177,7 +238,16 @@ def load_config(config_path: Path | None = None) -> AppConfig:
     resolved_path = config_path or default_config_path()
 
     if not resolved_path.exists():
-        return AppConfig()
+        try:
+            if config_path is None:
+                resolved_path.parent.mkdir(parents=True, exist_ok=True)
+            with resolved_path.open("x", encoding="utf-8") as config_file:
+                config_file.write(INITIAL_CONFIG)
+        except FileExistsError:
+            # Another process created it; read its settings without overwriting them.
+            pass
+        except OSError as exc:
+            raise ConfigError(f"Could not create config file at {resolved_path}: {exc}") from exc
 
     try:
         raw = tomllib.loads(resolved_path.read_text(encoding="utf-8"))
@@ -193,8 +263,27 @@ def load_config(config_path: Path | None = None) -> AppConfig:
 
     name = _read_optional_string(raw, "name", resolved_path)
     operation = _read_optional_string(raw, "operation", resolved_path) or "multiplication"
+    question_mode = _read_required_non_empty_string(
+        raw, "question_mode", resolved_path, default="result"
+    )
+    missing_symbol = _read_required_non_empty_string(
+        raw, "missing_symbol", resolved_path, default="_"
+    )
+    if question_mode not in ("result", "missing_operand", "mixed"):
+        raise ConfigError(
+            f"Invalid config file at {resolved_path}: question_mode must be 'result', 'missing_operand', or 'mixed'."
+        )
+    left_min = _read_required_non_negative_int(raw, "left_min", resolved_path, default=0)
+    right_min = _read_required_non_negative_int(raw, "right_min", resolved_path, default=0)
     left_max = _read_required_non_negative_int(raw, "left_max", resolved_path, default=12)
     right_max = _read_required_non_negative_int(raw, "right_max", resolved_path, default=12)
+    for side, minimum, maximum in (
+        ("left", left_min, left_max), ("right", right_min, right_max),
+    ):
+        if minimum > maximum:
+            raise ConfigError(
+                f"Invalid config file at {resolved_path}: {side}_min must be <= {side}_max."
+            )
     max_numbers = _read_required_min_int(
         raw, "max_numbers", resolved_path, default=3, minimum=2
     )
@@ -228,7 +317,7 @@ def load_config(config_path: Path | None = None) -> AppConfig:
         raw,
         "no_message",
         resolved_path,
-        default="No...",
+        default="No... %a",
     )
     greeting_messages = _read_optional_string_options(raw, "greeting_messages", resolved_path)
     success_messages = _read_optional_string_options(raw, "success_messages", resolved_path)
@@ -245,7 +334,11 @@ def load_config(config_path: Path | None = None) -> AppConfig:
     return AppConfig(
         name=name,
         operation=operation,
+        question_mode=question_mode,
+        missing_symbol=missing_symbol,
+        left_min=left_min,
         left_max=left_max,
+        right_min=right_min,
         right_max=right_max,
         max_numbers=max_numbers,
         coin_target=coin_target,

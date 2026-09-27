@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from dataclasses import fields
 from pathlib import Path
+import tomllib
 
 import pytest
 
@@ -11,15 +13,131 @@ from termedu.config import AppConfig, ConfigError, load_config
 
 
 def test_load_config_defaults_when_file_missing(tmp_path: Path) -> None:
-    config = load_config(tmp_path / ".termedu")
+    path = tmp_path / ".termedu"
+    config = load_config(path)
 
     assert config == AppConfig()
+    assert path.read_text(encoding="utf-8") == config_module.INITIAL_CONFIG
+    assert load_config(path) == AppConfig()
+
+
+def test_load_config_reads_operand_minima(tmp_path: Path) -> None:
+    path = tmp_path / "config.toml"
+    path.write_text('left_min = 2\nright_min = 3\n', encoding="utf-8")
+    config = load_config(path)
+    assert config.left_min == 2
+    assert config.right_min == 3
+
+
+@pytest.mark.parametrize("side", ["left", "right"])
+@pytest.mark.parametrize("value", ["-1", "true", "1.5", '"2"'])
+def test_load_config_rejects_invalid_minima(tmp_path: Path, side: str, value: str) -> None:
+    path = tmp_path / "config.toml"
+    path.write_text(f'{side}_min = {value}\n', encoding="utf-8")
+    with pytest.raises(ConfigError, match=f"{side}_min must be a non-negative integer"):
+        load_config(path)
+
+
+@pytest.mark.parametrize("side", ["left", "right"])
+def test_load_config_rejects_reversed_range(tmp_path: Path, side: str) -> None:
+    path = tmp_path / "config.toml"
+    path.write_text(f'{side}_min = 5\n{side}_max = 4\n', encoding="utf-8")
+    with pytest.raises(ConfigError, match=f"{side}_min must be <= {side}_max"):
+        load_config(path)
+
+
+def test_initial_config_documents_all_settings(tmp_path: Path) -> None:
+    # Uncomment the optional examples to verify they are complete and usable.
+    uncommented = "\n".join(
+        line[2:] if line.startswith("# ") else line
+        for line in config_module.INITIAL_CONFIG.splitlines()
+        if not line.startswith("# missing_symbol = ")
+        and (not line.startswith("# ") or " = " in line or line in (
+            '# Great work today!', '# You reached your coin target.', '# """',
+        ))
+    )
+    raw = tomllib.loads(uncommented)
+    assert set(raw) == {field.name for field in fields(AppConfig)}
+    path = tmp_path / ".termedu"
+    path.write_text(uncommented, encoding="utf-8")
+    assert load_config(path).name == "Mia"
+
+
+def test_load_config_preserves_existing_file(tmp_path: Path) -> None:
+    path = tmp_path / ".termedu"
+    original = '# My settings\nquestion_mode = "mixed"\n'
+    path.write_text(original, encoding="utf-8")
+    assert load_config(path).question_mode == "mixed"
+    assert path.read_text(encoding="utf-8") == original
+
+
+def test_load_config_creates_default_home_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(config_module.Path, "home", lambda: tmp_path)
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    assert load_config() == AppConfig()
+    assert (tmp_path / ".config" / "termedu" / "config.toml").is_file()
+
+
+def test_load_config_uses_xdg_config_home(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "settings"))
+    assert load_config() == AppConfig()
+    assert (tmp_path / "settings" / "termedu" / "config.toml").is_file()
+
+
+@pytest.mark.parametrize("value", ["", "relative/path"])
+def test_default_config_path_ignores_invalid_xdg_home(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, value: str,
+) -> None:
+    monkeypatch.setenv("XDG_CONFIG_HOME", value)
+    monkeypatch.setattr(config_module.Path, "home", lambda: tmp_path)
+    assert config_module.default_config_path() == tmp_path / ".config" / "termedu" / "config.toml"
+
+
+def test_load_config_reports_creation_failure(tmp_path: Path) -> None:
+    path = tmp_path / "missing-directory" / ".termedu"
+    with pytest.raises(ConfigError, match="Could not create config file"):
+        load_config(path)
+
+
+@pytest.mark.parametrize("mode", ["result", "missing_operand", "mixed"])
+def test_load_config_question_modes(tmp_path: Path, mode: str) -> None:
+    path = tmp_path / ".termedu"
+    path.write_text(f'question_mode = "{mode}"\n', encoding="utf-8")
+    assert load_config(path).question_mode == mode
+
+
+def test_load_config_custom_missing_symbol(tmp_path: Path) -> None:
+    path = tmp_path / "config.toml"
+    path.write_text('missing_symbol = "□"\n', encoding="utf-8")
+    assert load_config(path).missing_symbol == "□"
+
+
+@pytest.mark.parametrize("value", ['""', '"   "', '42', 'true'])
+def test_load_config_rejects_invalid_missing_symbol(tmp_path: Path, value: str) -> None:
+    path = tmp_path / "config.toml"
+    path.write_text(f'missing_symbol = {value}\n', encoding="utf-8")
+    with pytest.raises(ConfigError, match="missing_symbol"):
+        load_config(path)
+
+
+@pytest.mark.parametrize("value", ['"unknown"', '""', '42', 'true'])
+def test_load_config_rejects_invalid_question_modes(tmp_path: Path, value: str) -> None:
+    path = tmp_path / ".termedu"
+    path.write_text(f'question_mode = {value}\n', encoding="utf-8")
+    with pytest.raises(ConfigError, match="question_mode"):
+        load_config(path)
 
 
 def test_load_config_uses_home_directory_by_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    config_path = tmp_path / ".termedu"
+    config_path = tmp_path / ".config" / "termedu" / "config.toml"
+    config_path.parent.mkdir(parents=True)
     config_path.write_text('name = "Home"\n', encoding="utf-8")
     monkeypatch.setattr(config_module.Path, "home", lambda: tmp_path)
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
 
     config = load_config()
 

@@ -87,7 +87,7 @@ Exact module names may vary, but the code should be split by responsibility rath
 
 ## Configuration Format
 
-- Read user configuration from `~/.termedu`.
+- Read user configuration from `~/.config/termedu/config.toml`.
 - Use a standard config file format.
 - Preferred format: `TOML`.
 
@@ -222,7 +222,7 @@ An implementation aligns with this document when:
 2. The project uses `pyproject.toml`.
 3. The app exposes a `termedu` entry point.
 4. The entry point works regardless of the current working directory.
-5. Config is read from `~/.termedu` using a standard format, preferably TOML.
+5. Config is read from `~/.config/termedu/config.toml` using a standard format, preferably TOML.
 6. The optional `coin_target`, `correct_reward`, and `wrong_penalty` config values are supported with defaults `1.0`, `0.05`, and `0.1`, reject non-positive values with clear errors, and deprecated `session_target` fails with a migration-friendly error.
 7. The project includes unit tests using `pytest`.
 7. The implementation keeps dependencies minimal and uses the standard library where practical.
